@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>작업 카페 지도</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: 화면 전체 지도 + 위 필터 칩 + 아래 끌어올리는 카페 목록 시트 */
+:root{
+  --ink:#161b19; --muted:#69736e; --line:#e3e7e4; --sub:#f3f5f4; --bg:#ffffff;
+  --mine:#2f4bd8; --mine-soft:#e8ecfd; --me:#e0453a; --go:#0a7cff;
+  --ok:#1f7a4d; --ok-soft:#e2f2e8; --warn:#9a6200; --warn-soft:#fbf0d9; --no:#a33a3a; --no-soft:#f7e3e3;
+  --font:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --peek:150px; --sat:env(safe-area-inset-top); --sab:env(safe-area-inset-bottom);
+  color-scheme:light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
+body{font-family:var(--font);color:var(--ink);background:var(--bg);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--mine);outline-offset:2px}
+
+#map{position:fixed;inset:0;background:#eef0ee;z-index:0}
+
+/* 상단 오버레이 */
+.top{position:fixed;left:0;right:0;top:0;z-index:600;padding:calc(var(--sat) + 10px) 12px 0;display:grid;gap:8px;pointer-events:none}
+.bar{display:flex;gap:8px;align-items:center;pointer-events:auto}
+.where{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:14px;padding:10px 12px;box-shadow:0 2px 12px rgba(0,0,0,.14);font-size:14px;text-align:left}
+.where i{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.where.on i{background:var(--me);box-shadow:0 0 0 4px rgba(224,69,58,.18)}
+.where b{font-weight:700;white-space:nowrap}
+.where span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sq{width:44px;height:44px;border-radius:14px;background:var(--bg);box-shadow:0 2px 12px rgba(0,0,0,.14);display:grid;place-items:center;flex:none}
+.sq svg{width:22px;height:22px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;pointer-events:auto;margin:0 -12px;padding:0 12px 4px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;background:var(--bg);border-radius:999px;padding:7px 13px;font-size:14px;font-weight:500;box-shadow:0 1px 6px rgba(0,0,0,.14);white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff}
+
+/* 지도 우측 버튼 */
+.fabs{position:fixed;right:12px;z-index:550;display:grid;gap:10px;bottom:calc(var(--peek) + var(--sab) + 14px);transition:bottom .25s}
+body.half .fabs,body.full .fabs{opacity:0;pointer-events:none}
+
+/* 마커 */
+.mk{display:inline-flex;align-items:center;gap:3px;transform:translate(-50%,-100%);white-space:nowrap;font-family:var(--font)}
+.mk .p{background:var(--ink);color:#fff;font-size:12px;font-weight:800;line-height:1;padding:6px 8px;border-radius:999px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);position:relative;font-variant-numeric:tabular-nums}
+.mk .p::after{content:"";position:absolute;left:50%;bottom:-7px;margin-left:-5px;border:5px solid transparent;border-top-color:#fff}
+.mk.mine .p{background:var(--mine)}
+.mk.dot .p{width:16px;height:16px;padding:0}
+.mk.sel .p{background:var(--me);transform:scale(1.18)}
+.mk.dim{opacity:.28}
+.mk .n{display:none;background:rgba(255,255,255,.92);font-size:11px;font-weight:700;padding:1px 5px;border-radius:5px;margin-left:2px}
+.showNames .mk .n{display:inline}
+.me{width:18px;height:18px;border-radius:50%;background:var(--me);border:3px solid #fff;box-shadow:0 0 0 7px rgba(224,69,58,.2)}
+.homep{width:14px;height:14px;border-radius:4px;background:#fff;border:3px solid var(--mine)}
+
+/* 바텀 시트 */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:700;background:var(--bg);border-radius:20px 20px 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.16);display:flex;flex-direction:column;height:calc(var(--peek) + var(--sab));transition:height .25s ease;max-width:640px;margin:0 auto}
+body.half .sheet{height:55dvh}
+body.full .sheet{height:calc(100dvh - var(--sat) - 64px)}
+.grab{flex:none;padding:8px 16px 6px;touch-action:none}
+.grab .h{width:44px;height:5px;border-radius:3px;background:#d4d9d6;margin:0 auto 8px}
+.grab .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.grab h2{font-size:17px;font-weight:800;margin:0}
+.grab .meta{font-size:13px;color:var(--muted);white-space:nowrap}
+.list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 12px calc(var(--sab) + 16px);display:grid;gap:10px;align-content:start}
+.note{font-size:13px;color:var(--muted);background:var(--sub);border-radius:12px;padding:10px 12px;margin:0}
+.note button{color:var(--mine);font-weight:700;text-decoration:underline}
+
+/* 카드 */
+.card{border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:grid;gap:8px;background:var(--bg);scroll-margin:8px}
+.card.mine{border-left:4px solid var(--mine)}
+.card.sel{border-color:var(--me);box-shadow:0 0 0 1px var(--me)}
+.ctop{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.cn{font-size:17px;font-weight:800;line-height:1.3}
+.badge{font-size:11px;font-weight:700;color:var(--mine);background:var(--mine-soft);border-radius:999px;padding:2px 7px;margin-left:6px;vertical-align:2px}
+.cr{font-size:13px;color:var(--muted);margin-top:2px}
+.time{text-align:right;flex:none;min-width:72px}
+.time .v{font-size:22px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.time .s{font-size:12px;color:var(--muted);white-space:nowrap}
+.time .v.wait{font-size:14px;font-weight:500;color:var(--muted)}
+.time .v.err{font-size:13px;font-weight:700;color:var(--no)}
+.info{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:13px;color:var(--muted);align-items:center}
+.pk{font-weight:700;border-radius:6px;padding:1px 7px}
+.pk.free,.pk.yes{background:var(--ok-soft);color:var(--ok)} .pk.paid{background:var(--warn-soft);color:var(--warn)}
+.pk.none{background:var(--no-soft);color:var(--no)} .pk.unk{background:var(--sub);color:var(--muted)}
+.memo{font-size:14px;margin:0}
+.go{display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border-radius:12px;background:var(--go);color:#fff;font-weight:800;font-size:16px;text-decoration:none}
+.go svg{width:20px;height:20px}
+.empty{text-align:center;color:var(--muted);padding:24px 0}
+
+/* 설정 모달 */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:900;display:none}
+.modal{position:fixed;left:0;right:0;bottom:0;z-index:901;background:var(--bg);border-radius:20px 20px 0 0;padding:18px 16px calc(var(--sab) + 18px);display:none;gap:14px;max-width:640px;margin:0 auto;max-height:90dvh;overflow:auto}
+.modal.show,.modal-bg.show{display:grid}
+.modal h3{margin:0;font-size:19px}
+.field{display:grid;gap:6px}
+.field label{font-size:14px;font-weight:700}
+.field input,.field select{font:inherit;font-size:16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--sub);width:100%}
+.help{font-size:13px;color:var(--muted);margin:0}
+.q{display:flex;justify-content:space-between;font-size:14px;background:var(--sub);border-radius:12px;padding:10px 12px;font-variant-numeric:tabular-nums}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{height:48px;border-radius:12px;font-weight:700;background:var(--sub)}
+.btn.pri{background:var(--ink);color:#fff}
+.opt{display:grid;gap:8px}
+.toast{position:fixed;left:50%;top:calc(var(--sat) + 120px);transform:translateX(-50%);background:var(--ink);color:#fff;font-size:14px;padding:10px 14px;border-radius:12px;z-index:1000;max-width:88vw;display:none;text-align:center}
+.toast.show{display:block}
+.leaflet-control-attribution{font-size:10px}
+.leaflet-bottom.leaflet-right{bottom:calc(var(--peek) + var(--sab))}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="map" role="application" aria-label="카페 지도"></div>
+
+<div class="top">
+  <div class="bar">
+    <button type="button" class="where" id="whereBtn"><i></i><b id="whereT">위치 찾는 중</b><span id="whereS"></span></button>
+    <button type="button" class="sq" id="setBtn" aria-label="설정">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    </button>
+  </div>
+  <div class="chips" role="group" aria-label="필터">
+    <button type="button" class="chip" data-f="mine" aria-pressed="false">내 단골</button>
+    <button type="button" class="chip" data-f="park" aria-pressed="false">주차 확인</button>
+    <button type="button" class="chip" data-f="late" aria-pressed="false">밤 11시 이후</button>
+    <button type="button" class="chip" data-f="24" aria-pressed="false">24시간</button>
+    <button type="button" class="chip" data-f="work" aria-pressed="false">작업 특화</button>
+    <button type="button" class="chip" data-f="spec" aria-pressed="false">스페셜티</button>
+    <button type="button" class="chip" data-f="names" aria-pressed="false">이름 표시</button>
+  </div>
+</div>
+
+<div class="fabs">
+  <button type="button" class="sq" id="gpsBtn" aria-label="내 위치로">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+  </button>
+  <button type="button" class="sq" id="allBtn" aria-label="카페 전체 보기">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+</div>
+
+<section class="sheet" id="sheet" aria-label="카페 목록">
+  <div class="grab" id="grab">
+    <div class="h"></div>
+    <div class="row"><h2 id="sheetTitle">가까운 카페</h2><span class="meta" id="sheetMeta"></span></div>
+  </div>
+  <div class="list" id="list"></div>
+</section>
+
+<div class="modal-bg" id="mbg"></div>
+<section class="modal" id="setModal" role="dialog" aria-modal="true" aria-labelledby="setT">
+  <h3 id="setT">설정</h3>
+  <div class="field">
+    <label for="keyIn">TMAP 앱키 (선택)</label>
+    <input id="keyIn" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="SK open API App Key">
+    <p class="help">선택 사항이에요. 넣으면 TMAP 실시간 교통 기준으로 계산하고, 비워 두면 도로 경로 + 시간대 보정 예상치로 보여줘요.</p>
+  </div>
+  <div class="q"><span>오늘 차량 시간 계산</span><span id="qv"></span></div>
+  <p class="help">TMAP 무료 한도는 하루 1,000건이에요. 같은 자리(약 300m 안)에서는 15분 동안 다시 계산하지 않아요.</p>
+  <div class="btns"><button type="button" class="btn" id="refreshBtn">지금 다시 계산</button><button type="button" class="btn pri" id="saveBtn">저장</button></div>
+</section>
+<section class="modal" id="whereModal" role="dialog" aria-modal="true" aria-labelledby="whT">
+  <h3 id="whT">출발지</h3>
+  <div class="opt">
+    <button type="button" class="btn pri" id="useGps">현재 위치(GPS)</button>
+    <button type="button" class="btn" id="useHome">집에서 출발</button>
+    <button type="button" class="btn" id="usePick">지도에서 직접 고르기</button>
+  </div>
+</section>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ===== 설정 ===== */
+const CONFIG = {
+  TMAP_APP_KEY: "",                                  // 여기에 넣으면 모든 기기에서 바로 동작
+  HOME: { lat: 37.5300, lng: 126.8140, name: "집(고강동)" },
+  TTL_MIN: 15,                                       // 같은 출발지 결과 재사용(분)
+  CONCURRENCY: 2
+};
+const CAFES = [{"n":"푸어링아웃","m":1,"r":"연희·연남","a":"서울 서대문구 연희로11나길 7-7","lat":37.5672517,"lng":126.9281179,"h":"매일 10:00–22:00","pk":"none","pn":"전용 주차 없음","t":["스페셜티","작업"],"memo":"어두운 톤, 음악이 커서 오히려 집중 잘 됨. 얼그레이 팬케이크","pid":"ChIJZWkglVaZfDURibevVJEglPU"},{"n":"프로토콜 로스터스 연희","m":1,"r":"연희·연남","a":"서울 서대문구 연희로 109","lat":37.5677541,"lng":126.9313583,"h":"매일 10:30–22:00","pk":"none","pn":"전용 주차 없음","t":["스페셜티","작업"],"memo":"연필·노트·스탠드·콘센트까지 갖춘 작업 친화 로스터리","pid":"ChIJMz97KaqZfDURX6x5sq-kQa4"},{"n":"앤트러사이트 서교","m":1,"r":"망원·합정·서교","a":"서울 마포구 월드컵로12길 11","lat":37.5554335,"lng":126.9117009,"h":"매일 09:00–22:00","pk":"paid","pn":"청기와노상공영주차장2 이용","t":["스페셜티","작업"],"memo":"3개 층, 정원 같은 공간. 핸드드립 선택지 많음","pid":"ChIJdVKTetiYfDURtEs6XRWCcLw"},{"n":"HHSS HOUSE","m":1,"r":"망원·합정·서교","a":"서울 마포구 월드컵로 113, 3층","lat":37.5584096,"lng":126.907592,"h":"매일 11:00–21:00","pk":"unk","pn":"확인 필요","t":["작업"],"memo":"신발 벗고 입장. 통창 앞 긴 바테이블, 혼자 작업 최적","pid":"ChIJAyzXKKGZfDURXKdk0wc_7o8"},{"n":"논오프 목동점","m":1,"r":"목동·신정","a":"서울 양천구 국회대로 279","lat":37.5303857,"lng":126.8661058,"h":"24시간","pk":"yes","pn":"주차 가능","t":["24시","주차"],"memo":"베이커리 겸업. 테라스 흡연 냄새가 들어올 때 있음","pid":"ChIJ9wDTUQCdfDURdB63_CW6fxI"},{"n":"맥파이 커피바","m":1,"r":"부천 오정구","a":"경기 부천시 오정구 역곡로284번길 5, 3층","lat":37.509868,"lng":126.8126878,"h":"확인 필요","pk":"yes","pn":"주차 편함","t":["주차"],"memo":"넓고 뷰 좋음, 테라스. 집(고강동)에서 가까움","pid":"ChIJf-VccwCdfDURrdnjBv3mpvk"},{"n":"카페우니코","m":1,"r":"부천 오정구","a":"경기 부천시 오정구 소사로 737","lat":37.5218809,"lng":126.8045056,"h":"매일 10:30–01:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"원종동, 새벽 1시까지","pid":"ChIJuVDPNgCdfDURda7OOPB9acw"},{"n":"빵백화점 신중동점","m":1,"r":"부천 중동·상동","a":"경기 부천시 원미구 신흥로 190-1 위브더스테이트 상가 2동 127호","lat":37.501559,"lng":126.777688,"h":"24시간","pk":"free","pn":"4시간 무료(후기)","t":["24시","주차"],"memo":"넓은 24시 빵카페","pid":"ChIJ35slcoB9ezURftfFluSqjoA"},{"n":"앤트러사이트 연희","m":0,"r":"연희·연남","a":"서울 서대문구 연희로 135","lat":37.5696478,"lng":126.9328198,"h":"매일 08:50–22:00","pk":"unk","pn":"확인 필요","t":["스페셜티","작업"],"memo":"1·2층 큰 홀, 긴 벤치에서 노트북 작업 많이 함. 서교점 좋아하면 필수","pid":"ChIJy2dxxq2ZfDURYYhunZltRP8"},{"n":"혹스턴 HOXTON","m":0,"r":"연희·연남","a":"서울 서대문구 연희로 91, 2층","lat":37.5663242,"lng":126.9302728,"h":"매일 11:00–22:00","pk":"unk","pn":"확인 필요","t":["스페셜티","작업"],"memo":"햇살 드는 2층, 작업하는 손님이 많은 분위기","pid":"ChIJc1Ph9_6ZfDURf-5dwGTFWqs"},{"n":"다크에디션커피","m":0,"r":"연희·연남","a":"서울 서대문구 연희로11마길 12","lat":37.5690016,"lng":126.9280004,"h":"08:00–20:00 (수 휴무)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"커피만 파는 곳, 원두 라인업이 강점. 푸어링아웃 바로 근처","pid":"ChIJo3e5BvOZfDURoPsYaUEKeSc"},{"n":"디폴트밸류","m":0,"r":"연희·연남","a":"서울 서대문구 성산로 333, 1층","lat":37.5661782,"lng":126.9273571,"h":"매일 11:00–19:00","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"원두를 여러 음료로 비교해 마셔보기 좋은 곳","pid":"ChIJAWv2fK2ZfDURdLUPkzMPZcc"},{"n":"데어스툴","m":0,"r":"연희·연남","a":"서울 서대문구 연희로25길 98","lat":37.5695365,"lng":126.9318315,"h":"11:00–21:00 (월 휴무)","pk":"unk","pn":"확인 필요","t":[],"memo":"베를린 감성, 혼자 가기 편함. 당근케이크","pid":"ChIJgbw37CuZfDURClEWUjK7ccM"},{"n":"센트럴사이트 연남","m":0,"r":"연희·연남","a":"서울 마포구 연희로 29-1","lat":37.561559,"lng":126.926835,"h":"08:00–22:00 (월 ~17:00)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"게이샤 등 싱글오리진, 아침 일찍 열어 오전 작업용","pid":"ChIJ6Zz-vuWZfDURg2waFm-VEZ4"},{"n":"카페 공명 연남","m":0,"r":"연희·연남","a":"서울 마포구 연희로 11, 1층","lat":37.559907,"lng":126.926245,"h":"매일 10:00–22:00","pk":"unk","pn":"확인 필요","t":["작업"],"memo":"공부·작업하러 오는 손님이 많은 베이커리 카페","pid":"ChIJiaErr1KZfDUR8kST3UJkvrs"},{"n":"짙은산","m":0,"r":"연희·연남","a":"서울 마포구 성미산로29안길 27","lat":37.565563,"lng":126.923497,"h":"매일 08:30–23:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"음악 선곡 좋고 밤 11시까지","pid":"ChIJeVGn7OOZfDURdLhyAlRs9Uo"},{"n":"Knock Knock (연남)","m":0,"r":"연희·연남","a":"서울 마포구 성미산로 139, 1층","lat":37.563833,"lng":126.921937,"h":"매일 08:30–01:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"넓은 매장, 새벽 1시까지 눈치 안 보고 앉기 좋음","pid":"ChIJLZODBQCZfDURURDWR-Lo2-0"},{"n":"픽트로스터리 망원","m":0,"r":"망원·합정·서교","a":"서울 마포구 월드컵로23길 45, 1층","lat":37.555872,"lng":126.907275,"h":"수–금 11:00–19:00 / 주말 ~21:00 (월·화 휴무)","pk":"unk","pn":"확인 필요","t":["스페셜티","작업"],"memo":"망원시장 옆 조용한 골목, 창가 자리·콘센트","pid":"ChIJUbHAyg-ZfDURQmr5TlDshig"},{"n":"올웨이즈어거스트 망원","m":0,"r":"망원·합정·서교","a":"서울 마포구 망원로6길 19","lat":37.55607,"lng":126.903496,"h":"12:00–22:00 (일 ~21:00)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"필터커피 맛집, 웨이팅 있을 수 있음","pid":"ChIJY9e-WMiZfDURXHZ3nQF5zdw"},{"n":"딥블루레이크","m":0,"r":"망원·합정·서교","a":"서울 마포구 포은로6길 9","lat":37.555791,"lng":126.905566,"h":"매일 10:00–21:30","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"작고 미니멀, 붐비는 편이라 평일 추천","pid":"ChIJmfIOVS-ZfDURdJutr7fX_yY"},{"n":"센트럴사이트 합정","m":0,"r":"망원·합정·서교","a":"서울 마포구 양화로7길 20, 1층","lat":37.551705,"lng":126.914863,"h":"08:00–22:00 (월 ~17:00)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"연남점과 같은 로스터리","pid":"ChIJu2HVIV-ZfDURW799lck3GFU"},{"n":"앤트러사이트 합정","m":0,"r":"망원·합정·서교","a":"서울 마포구 토정로5길 10","lat":37.545828,"lng":126.918384,"h":"08:00–20:00 (금·토 ~21:50)","pk":"unk","pn":"확인 필요","t":["스페셜티","작업"],"memo":"넓고 밝은 인더스트리얼, 노트북 작업 좋음","pid":"ChIJx6CwxdOYfDURcTPw_mx60ws"},{"n":"파스텔커피웍스","m":0,"r":"망원·합정·서교","a":"서울 마포구 성지길 58, 1층","lat":37.546262,"lng":126.912648,"h":"평일 08:30–18:00 / 주말 09:30–18:30","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"원두 선택 가능, 푸어오버","pid":"ChIJgb4kaoOZfDURipvMu1vdAck"},{"n":"런잇 (상암)","m":0,"r":"상암·북가좌·은평","a":"서울 마포구 매봉산로2안길 12-9","lat":37.578019,"lng":126.894201,"h":"평일 08:00–22:00 / 토 10:30–21:30 (일 휴무)","pk":"unk","pn":"확인 필요","t":["작업"],"memo":"로스터리, 좌석 넉넉. 크로플 유명","pid":"ChIJu96NQM2ZfDURvbmEsfdrWkA"},{"n":"네마커피 북가좌","m":0,"r":"상암·북가좌·은평","a":"서울 서대문구 거북골로 208-1","lat":37.578994,"lng":126.908302,"h":"매일 09:00–20:00","pk":"unk","pn":"확인 필요","t":[],"memo":"2층 주택 개조, 조용하고 차분","pid":"ChIJ9Rq3p0eZfDURxa3wcrg03X4"},{"n":"네이버후드커피","m":0,"r":"상암·북가좌·은평","a":"서울 은평구 응암로21길 23","lat":37.59418,"lng":126.915399,"h":"매일 11:00–23:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"불광천변, 밝고 식물 많음","pid":"ChIJvcmRMouZfDUROotrUXpnqtY"},{"n":"지브릭커피","m":0,"r":"상암·북가좌·은평","a":"서울 은평구 연서로48길 12","lat":37.637322,"lng":126.935311,"h":"매일 09:00–21:00","pk":"yes","pn":"가게 뒤 주차 공간(후기)","t":["주차"],"memo":"아파트 단지 모퉁이의 조용한 동네 카페","pid":"ChIJfT8agMiXfDURd14EALmYyoE"},{"n":"YM 커피 프로젝트 구파발","m":0,"r":"상암·북가좌·은평","a":"서울 은평구 진관3로 43-9, 1층","lat":37.640898,"lng":126.920909,"h":"10:00–22:00 (목 휴무)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"성당 같은 인테리어, 에스프레소 맛집","pid":"ChIJGahOilqXfDURrdLg5ywFfO0"},{"n":"할리스 북한산DI점","m":0,"r":"상암·북가좌·은평","a":"서울 은평구 북한산로 248","lat":37.651864,"lng":126.938511,"h":"평일 09:30–20:30 / 주말 ~21:00","pk":"yes","pn":"주차 넉넉(후기)","t":["주차","작업"],"memo":"프랜차이즈지만 2층에 유리 칸막이 개인석, 숲 뷰","pid":"ChIJdwuWaJSXfDURxXLsCL-z9-A"},{"n":"오프레스트 로스터리","m":0,"r":"강서","a":"서울 강서구 공항대로59길 64","lat":37.554127,"lng":126.863644,"h":"매일 09:00–22:00","pk":"unk","pn":"확인 필요","t":["스페셜티","작업"],"memo":"등촌역. 넓고 깔끔, 저녁엔 한산하고 조용. 테린느","pid":"ChIJc-JOUQidfDUR38JvoAO49YQ"},{"n":"비플랫 B.Flat","m":0,"r":"강서","a":"서울 강서구 곰달래로 88, 1층","lat":37.530143,"lng":126.842632,"h":"11:00–01:00 (주말 10:00~)","pk":"unk","pn":"확인 필요","t":["심야","작업"],"memo":"좌석 종류 다양, 와이파이 좋음. 새벽 1시까지","pid":"ChIJm5uLX7SdfDURLQWETHhE9h8"},{"n":"테이퍼드커피","m":0,"r":"강서","a":"서울 강서구 화곡로68길 47","lat":37.558741,"lng":126.856754,"h":"매일 08:00–23:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"동네 로컬 커피, 밤 11시까지","pid":"ChIJmbGcJC-dfDUR-0UFAq7wFyQ"},{"n":"체르보 Cervo","m":0,"r":"강서","a":"서울 강서구 화곡로 176-17","lat":37.5415106,"lng":126.8415462,"h":"매일 10:00–23:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"화곡역 근처, 바 같은 조명(작업은 창가 자리)","pid":"ChIJvT9fmtadfDURjbGkEBcbeSg"},{"n":"카페 공명 마곡책빵","m":0,"r":"강서","a":"서울 강서구 마곡동 768-1","lat":37.5626143,"lng":126.8263738,"h":"평일 07:00–22:00 / 주말 10:00–22:00","pk":"free","pn":"1시간 무료","t":["작업","주차"],"memo":"도서관 같은 분위기, 조용해서 집중하기 좋음","pid":"ChIJ74FHbQCdfDURlYXUigh3Iro"},{"n":"플라워플로우","m":0,"r":"강서","a":"서울 강서구 마곡중앙로 143, 2층","lat":37.5650788,"lng":126.8253337,"h":"평일 07:00–20:00 / 주말 09:00–20:00","pk":"unk","pn":"건물 주차장 있음(무료 조건 확인)","t":["작업"],"memo":"소노트리니티 커먼스 2층 식물원 카페, 칸막이 같은 나무","pid":"ChIJpTd7ZACdfDURwnyVz0hIWrg"},{"n":"픽트로스터리 마곡","m":0,"r":"강서","a":"서울 강서구 마곡중앙로 161-1, 2층 226호","lat":37.568049,"lng":126.827544,"h":"수–일 11:00–20:00 (월·화 휴무)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"마곡나루역, 망원점과 같은 브랜드","pid":"ChIJ9eI1XI6dfDUROaUsU4m9XDk"},{"n":"어나더사이드","m":0,"r":"강서","a":"서울 강서구 강서로 318","lat":37.5541278,"lng":126.837073,"h":"평일 09:00–23:00 / 주말 10:00~","pk":"free","pn":"1만원당 1시간 무료","t":["주차","심야"],"memo":"인테리어 예쁨, 주말엔 붐빔","pid":"ChIJ0wVOI5SdfDUR3E6hrlj65Lg"},{"n":"에이바우트커피 양천향교역점","m":0,"r":"강서","a":"서울 강서구 강서로 466, 1층","lat":37.566978,"lng":126.841269,"h":"24시간","pk":"unk","pn":"확인 필요","t":["24시"],"memo":"강서권 24시 대안","pid":"ChIJ20WPRRedfDURaxYtDFn6wgE"},{"n":"카페히든","m":0,"r":"목동·신정","a":"서울 양천구 목동동로 222-6","lat":37.525279,"lng":126.872179,"h":"매일 11:30–22:00","pk":"unk","pn":"확인 필요","t":[],"memo":"지하 2개 층으로 넓음. 대형견 3마리 상주","pid":"ChIJXVLxNsqffDURQSVifnFmqqE"},{"n":"목동커피","m":0,"r":"목동·신정","a":"서울 양천구 신정동 900-9","lat":37.526881,"lng":126.863611,"h":"평일 09:00–23:00 / 주말 11:00~","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"개인 카페, 아침 일찍 열고 밤 11시까지","pid":"ChIJpUzdBQCdfDURTraTsQBJns8"},{"n":"로컬커피스탠드","m":0,"r":"목동·신정","a":"서울 양천구 신목로 45-1","lat":37.519236,"lng":126.87261,"h":"매일 09:00–19:00","pk":"unk","pn":"확인 필요","t":[],"memo":"통창, 조용, 식물·수조. 오늘의 커피 리필","pid":"ChIJmxqI2RCffDURx2QanY44je8"},{"n":"리브레리 Librairie","m":0,"r":"영등포·문래","a":"서울 영등포구 양산로25길 3, 1층","lat":37.5239911,"lng":126.8983459,"h":"평일 12:00–24:00 / 주말 11:00~","pk":"unk","pn":"확인 필요","t":["작업","심야"],"memo":"작업·독서 전용 라운지, 자리마다 스탠드. 자정까지","pid":"ChIJ2yju_TKffDUR1X-quazeATs"},{"n":"카페길 (신길교회)","m":0,"r":"영등포·문래","a":"서울 영등포구 영등포로67가길 9","lat":37.5149199,"lng":126.9195301,"h":"06:10–22:00 (수·금 ~23:00)","pk":"free","pn":"무료 주차(후기)","t":["주차"],"memo":"교회 안 카페. 평일 추천, 주말은 북적","pid":"ChIJtaD5kcGffDURkWtJhGckUdc"},{"n":"스멜팅커피","m":0,"r":"영등포·문래","a":"서울 영등포구 당산로 4-1","lat":37.515093,"lng":126.894314,"h":"09:00–22:00 (일 휴무)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"문래 로스터리, 루프탑","pid":"ChIJWew8XICffDURbE8ZABb_tKA"},{"n":"스페셜티스튜디오 도림","m":0,"r":"영등포·문래","a":"서울 영등포구 도림로139길 4, 1층","lat":37.514392,"lng":126.893372,"h":"매일 12:00–22:00","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"자가 로스팅, 핸드드립 가성비","pid":"ChIJS01i62mffDURKH2ZR_HBP0o"},{"n":"필그림커피","m":0,"r":"영등포·문래","a":"서울 영등포구 영신로9라길 12, 1층","lat":37.5131923,"lng":126.9055557,"h":"평일 08:00–19:00 / 주말 10:00–20:00","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"커피 평 매우 좋음, 오트밀크 있음","pid":"ChIJpX8APIqffDURJ1Lf9-QoN40"},{"n":"애프터커피 고강점","m":0,"r":"부천 오정구","a":"경기 부천시 오정구 역곡로482번길 25","lat":37.527198,"lng":126.817403,"h":"확인 필요","pk":"yes","pn":"주차 가능(후기)","t":["주차"],"memo":"고강동 동네 카페. 화장실이 외부","pid":"ChIJK5iyLwydfDURY8s6yjw5u1M"},{"n":"담쟁이북카페","m":0,"r":"부천 오정구","a":"경기 부천시 오정구 삼정동 318-13, 2층","lat":37.5147595,"lng":126.773717,"h":"매일 10:00–22:00","pk":"unk","pn":"확인 필요","t":["작업"],"memo":"책 많은 북카페, 공부하기 좋은 구조","pid":"ChIJ46JV3lB9ezURT98LFoFxvB8"},{"n":"커피리에또","m":0,"r":"부천 중동·상동","a":"경기 부천시 원미구 중동 (부천시청역 출구 앞)","lat":37.504993,"lng":126.764792,"h":"08:00–23:00 (일 12:00–21:00)","pk":"paid","pn":"부천시청 주차장(평일 20시 이후 무료)","t":["스페셜티","심야"],"memo":"부천에서 손꼽히는 로스터리, 원두 다양","pid":"ChIJ41vKWD99ezURiSiF2eXH9uA"},{"n":"써니커피","m":0,"r":"부천 중동·상동","a":"경기 부천시 원미구 석천로44번길 28","lat":37.490975,"lng":126.762545,"h":"매일 08:30–21:00","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"상동 숨은 스페셜티, 핸드드립 원두 다양. 디저트 없음","pid":"ChIJZUksBvh9ezURUXTstuMLjag"},{"n":"프레쉬쿠피","m":0,"r":"부천 중동·상동","a":"경기 부천시 원미구 신흥로 170-1 위브더스테이트 6단지 113","lat":37.498172,"lng":126.778817,"h":"09:30–21:30 (월 휴무)","pk":"unk","pn":"확인 필요","t":["스페셜티"],"memo":"오래된 신중동 로스터리, 푸어오버 평 좋음","pid":"ChIJQ4AJCJd9ezURNdBmNbfwVXY"},{"n":"평정심 커피 로스터스","m":0,"r":"부천 중동·상동","a":"경기 부천시 송내대로265번길 23","lat":37.507024,"lng":126.757458,"h":"08:45–19:00 (목 휴무)","pk":"unk","pn":"확인 필요","t":["스페셜티","작업"],"memo":"넓고 좌석 편함, 한적함","pid":"ChIJGX9HWgB9ezUR05nW1EZKIZU"},{"n":"크리드나인","m":0,"r":"부천 중동·상동","a":"경기 부천시 석천로184번길 18","lat":37.503564,"lng":126.763865,"h":"매일 11:00–02:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"어두운 베이커리 카페, 새벽 2시까지","pid":"ChIJvagCfv19ezURvaMf03GkizE"},{"n":"베이커리 호프","m":0,"r":"부천 중동·상동","a":"경기 부천시 석천로177번길 39, 1층","lat":37.5033636,"lng":126.7606488,"h":"매일 10:00–21:30","pk":"unk","pn":"확인 필요","t":[],"memo":"부천시청역 대형 베이커리, 넓고 깔끔","pid":"ChIJQ-C-SIt9ezUREvY3DXn1oXs"},{"n":"에이바우트커피 미림프라자점","m":0,"r":"부천 중동·상동","a":"경기 부천시 원미구 중동 1131-2 미림프라자","lat":37.4986871,"lng":126.7768257,"h":"매일 10:00–22:00","pk":"unk","pn":"확인 필요","t":["작업"],"memo":"1인석 많고 전 좌석 콘센트, 칸막이 자리","pid":"ChIJ0S4f1DV9ezURwwu6l9BDohk"},{"n":"카페동네 (상동도서관 앞)","m":0,"r":"부천 중동·상동","a":"경기 부천시 원미구 상동 (상동도서관 앞)","lat":37.4896701,"lng":126.7439894,"h":"매일 09:00–22:00","pk":"yes","pn":"주차 쉬움(후기)","t":["주차"],"memo":"조용, 앞 공원 산책","pid":"ChIJQfTBq_58ezURk-eS_qWtPHA"},{"n":"카페 판타지아","m":0,"r":"부천 중동·상동","a":"경기 부천시 원미구 길주로 1 영상문화단지","lat":37.5075165,"lng":126.7430335,"h":"매일 07:00–22:00","pk":"paid","pn":"4시간 1,000원(등록 시)","t":["주차"],"memo":"만화박물관 옆 대형 베이커리, 주말 혼잡","pid":"ChIJD4kFz8V9ezURL27HUPlCmaw"},{"n":"카페 복사골","m":0,"r":"부천 중동·상동","a":"경기 부천시 원미구 춘의동 48-25","lat":37.5011205,"lng":126.7963602,"h":"확인 필요","pk":"unk","pn":"확인 필요","t":[],"memo":"종합운동장 맞은편, 넓고 평일 한산","pid":"ChIJdTZgGQBjezURTjEHo7k_-p0"},{"n":"카페동네 부천역점","m":0,"r":"부천역·심곡","a":"경기 부천시 원미구 부천로66번길 67","lat":37.4879961,"lng":126.7868421,"h":"매일 09:10–23:00","pk":"unk","pn":"확인 필요","t":["심야"],"memo":"마당 있는 주택 개조, 고양이","pid":"ChIJ1Uz--M1iezURuY9aSr5wBsw"},{"n":"코지엠커피","m":0,"r":"부천역·심곡","a":"경기 부천시 원미구 심곡동 349-9","lat":37.48799,"lng":126.783358,"h":"매일 10:00–22:00","pk":"unk","pn":"확인 필요","t":["작업"],"memo":"3개 층, 공부하는 손님 많음(음악은 큰 편)","pid":"ChIJ8ShGldJiezURBldR-I69Ock"},{"n":"힐링창고","m":0,"r":"부천역·심곡","a":"경기 부천시 원미구 장말로352번길 19","lat":37.489574,"lng":126.781036,"h":"24시간","pk":"unk","pn":"확인 필요","t":["24시"],"memo":"조용하고 깔끔한 24시","pid":"ChIJrTm4lXV9ezUR0MsIi38l9Vw"}];
+</script>
+<script>
+(function(){
+"use strict";
+const LS = { get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} } };
+const appKey = () => (LS.get("tmapKey","") || CONFIG.TMAP_APP_KEY || "").trim();
+const today = () => new Date().toLocaleDateString("sv-SE",{ timeZone:"Asia/Seoul" });
+const usage = () => { const q = LS.get("usage",{}); return q.d === today() ? q : { d: today(), n: 0 }; };
+const bump = () => { const q = usage(); q.n++; LS.set("usage", q); };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const hav = (a,b) => { const R=6371,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng); const s=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2; return 2*R*Math.asin(Math.sqrt(s)); };
+const okey = o => (Math.round(o.lat/0.003)*0.003).toFixed(3)+","+(Math.round(o.lng/0.003)*0.003).toFixed(3);
+const mins = s => Math.max(1, Math.round(s/60));
+const fmtMin = s => { const m = mins(s); return m < 60 ? m + "분" : Math.floor(m/60) + "시간 " + (m%60) + "분"; };
+const shortMin = s => { const m = mins(s); return m < 60 ? m + "분" : Math.floor(m/60) + "h" + String(m%60).padStart(2,"0"); };
+const fmtKm = km => km < 1 ? Math.round(km*1000) + "m" : km.toFixed(km < 10 ? 1 : 0) + "km";
+const clock = d => d.toLocaleTimeString("ko-KR",{ hour:"numeric", minute:"2-digit", timeZone:"Asia/Seoul" });
+const PKL = { free:"무료주차", paid:"유료·공영주차", yes:"주차 가능", none:"주차 없음", unk:"주차 확인 필요" };
+
+const state = { origin:null, src:null, f:new Set(), sel:null, picking:false, calcAt:null };
+const res = {};            // idx -> {sec, dist} | {err} | {loading}
+let resKey = "";
+
+/* ---------- 지도 ---------- */
+const map = L.map("map", { zoomControl:false, attributionControl:true, tap:true });
+L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+  maxZoom:19, subdomains:"abcd",
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · 경로 OSRM'
+}).addTo(map);
+const bounds = L.latLngBounds(CAFES.map(c => [c.lat, c.lng]));
+map.fitBounds(bounds, { padding:[40,40], animate:false });
+
+function mkHtml(i){
+  const c = CAFES[i], r = res[i];
+  const label = r && r.sec != null ? shortMin(r.sec) : "";
+  return `<div class="mk ${c.m?"mine":""} ${label?"":"dot"} ${state.sel===i?"sel":""} ${match(c)?"":"dim"}"><span class="p">${label}</span><span class="n">${esc(c.n)}</span></div>`;
+}
+const markers = CAFES.map((c,i) => {
+  const m = L.marker([c.lat,c.lng], { icon: L.divIcon({ className:"", html: mkHtml(i), iconSize:null }), keyboard:true, title:c.n, riseOnHover:true });
+  m.on("click", () => select(i, true));
+  return m.addTo(map);
+});
+function refreshMarker(i){ markers[i].setIcon(L.divIcon({ className:"", html: mkHtml(i), iconSize:null })); markers[i].setZIndexOffset(state.sel===i ? 2000 : (CAFES[i].m ? 500 : 0)); }
+const homeM = L.marker([CONFIG.HOME.lat, CONFIG.HOME.lng], { icon: L.divIcon({ className:"", html:'<div class="homep"></div>', iconSize:[14,14], iconAnchor:[7,7] }), interactive:false }).addTo(map);
+let meM = null, meC = null;
+function drawMe(){
+  if (!state.origin) return;
+  const ll = [state.origin.lat, state.origin.lng];
+  if (!meM) meM = L.marker(ll, { icon: L.divIcon({ className:"", html:'<div class="me"></div>', iconSize:[18,18], iconAnchor:[9,9] }), interactive:false, zIndexOffset:3000 }).addTo(map); else meM.setLatLng(ll);
+  if (state.src === "gps" && state.origin.acc){ if (!meC) meC = L.circle(ll, { radius:state.origin.acc, color:"#e0453a", weight:1, fillOpacity:.07, interactive:false }).addTo(map); else meC.setLatLng(ll).setRadius(state.origin.acc); }
+  else if (meC){ map.removeLayer(meC); meC = null; }
+}
+map.on("click", e => {
+  if (!state.picking){ if (state.sel != null){ state.sel = null; renderAll(); } return; }
+  state.picking = false; setOrigin({ lat:e.latlng.lat, lng:e.latlng.lng }, "pick"); toast("출발지를 바꿨어요");
+});
+
+/* ---------- 출발지 ---------- */
+let watchId = null;
+function stopWatch(){ if (watchId != null){ navigator.geolocation.clearWatch(watchId); watchId = null; } }
+function setOrigin(o, src, keepWatch){
+  if (!keepWatch) stopWatch();
+  const prev = state.origin;
+  state.origin = o; state.src = src;
+  LS.set("lastOrigin", { o, src });
+  drawMe(); updateWhere();
+  if (!prev || hav(prev,o) > 0.5) fitAround();
+  calcAll(false);
+}
+function fitAround(){
+  const o = state.origin; if (!o) return;
+  const near = CAFES.map(c => [c, hav(o,c)]).sort((a,b) => a[1]-b[1]).slice(0,6).map(x => [x[0].lat, x[0].lng]);
+  map.fitBounds(L.latLngBounds([[o.lat,o.lng], ...near]), { paddingTopLeft:[30,130], paddingBottomRight:[30, 190], maxZoom:14, animate:false });
+}
+function startGps(manual){
+  if (!("geolocation" in navigator)) { fallback(); return; }
+  stopWatch();
+  document.getElementById("whereT").textContent = "위치 찾는 중";
+  let first = true;
+  watchId = navigator.geolocation.watchPosition(p => {
+    const o = { lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy };
+    if (first){ first = false; setOrigin(o, "gps", true); return; }
+    const moved = hav(state.origin, o) > 0.3;
+    state.origin = o; state.src = "gps"; LS.set("lastOrigin",{ o, src:"gps" }); drawMe(); updateWhere();
+    if (moved) calcAll(false);
+  }, err => {
+    stopWatch();
+    if (manual || !state.origin) toast(err.code === 1 ? "위치 권한이 꺼져 있어요. 집 기준으로 보여드릴게요" : "위치를 못 찾았어요. 집 기준으로 보여드릴게요");
+    if (!state.origin) fallback();
+  }, { enableHighAccuracy:true, maximumAge:20000, timeout:12000 });
+}
+function fallback(){
+  const last = LS.get("lastOrigin", null);
+  if (last && last.o && last.src !== "gps") setOrigin(last.o, last.src);
+  else setOrigin({ lat:CONFIG.HOME.lat, lng:CONFIG.HOME.lng }, "home");
+}
+function updateWhere(){
+  const lbl = { gps:"현재 위치", home:CONFIG.HOME.name, pick:"지도에서 고른 곳" }[state.src] || "출발지";
+  document.getElementById("whereT").textContent = lbl;
+  document.getElementById("whereS").textContent = state.calcAt ? `· ${clock(state.calcAt)} 출발 · 차량 ${state.mode === "est" ? "예상" : "TMAP"}` : "· 차량 이동시간";
+  document.getElementById("whereBtn").classList.toggle("on", state.src === "gps");
+}
+
+/* ---------- TMAP 자동차 경로 ---------- */
+async function carRoute(i){
+  const c = CAFES[i], o = state.origin;
+  const r = await fetch("https://apis.openapi.sk.com/tmap/routes?version=1&format=json", {
+    method:"POST",
+    headers:{ "appKey":appKey(), "Accept":"application/json", "Content-Type":"application/json" },
+    body: JSON.stringify({ startX:String(o.lng), startY:String(o.lat), endX:String(c.lng), endY:String(c.lat), reqCoordType:"WGS84GEO", resCoordType:"WGS84GEO", searchOption:"0", trafficInfo:"N", totalValue:2 })
+  });
+  let d = null; try{ d = await r.json(); }catch(e){}
+  if (!r.ok){ const e = new Error(String(r.status)); e.status = r.status; throw e; }
+  bump();
+  const p = d && d.features && d.features[0] && d.features[0].properties;
+  if (!p || p.totalTime == null) throw new Error("NORESULT");
+  return { sec:p.totalTime, dist:p.totalDistance };
+}
+function errMsg(e){
+  if (!e) return "실패";
+  if (e.status === 401 || e.status === 403) return "앱키 확인";
+  if (e.status === 429) return "한도 초과";
+  if (e.message === "NORESULT") return "경로 없음";
+  if (e instanceof TypeError) return "연결 실패";
+  return "실패";
+}
+
+/* ---------- 키 없이: OSM 도로 경로(OSRM) + 시간대 혼잡 보정 ---------- */
+const OSRM_HOSTS = ["https://routing.openstreetmap.de/routed-car", "https://router.project-osrm.org"];
+function congestion(d){
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US",{ timeZone:"Asia/Seoul", weekday:"short", hour:"numeric", hourCycle:"h23" }).formatToParts(d).map(x => [x.type, x.value]));
+  const h = +p.hour, wk = p.weekday === "Sat" || p.weekday === "Sun";
+  if (wk) return (h >= 10 && h < 21) ? 1.35 : 1.15;
+  if (h >= 7 && h < 10) return 1.6;
+  if (h >= 17 && h < 20) return 1.7;
+  if (h >= 10 && h < 17) return 1.35;
+  if (h >= 20 && h < 23) return 1.25;
+  return 1.1;
+}
+async function osrmAll(order){
+  const o = state.origin;
+  const coords = [[o.lng,o.lat], ...order.map(i => [CAFES[i].lng, CAFES[i].lat])].map(p => p[0].toFixed(6) + "," + p[1].toFixed(6)).join(";");
+  let last = null;
+  for (const host of OSRM_HOSTS){
+    try{
+      const r = await fetch(`${host}/table/v1/driving/${coords}?sources=0&annotations=duration,distance`);
+      const d = await r.json();
+      if (!r.ok || d.code !== "Ok") throw new Error(d && d.code || String(r.status));
+      return { dur: d.durations[0].slice(1), dist: d.distances ? d.distances[0].slice(1) : [] };
+    }catch(e){ last = e; }
+  }
+  throw last || new Error("OSRM");
+}
+let run = 0;
+async function calcAll(force){
+  if (!state.origin) return;
+  const key = okey(state.origin);
+  const cache = LS.get("carCache", null);
+  if (!force && cache && cache.k === key && (cache.mode === "est") === !appKey() && Date.now() - cache.t < CONFIG.TTL_MIN*60000){
+    Object.keys(res).forEach(k => delete res[k]); Object.assign(res, cache.r); state.calcAt = new Date(cache.t); state.mode = cache.mode || "tmap"; resKey = key; renderAll(); updateWhere(); return;
+  }
+  const my = ++run; resKey = key;
+  if (!appKey()){
+    Object.keys(res).forEach(k => delete res[k]);
+    const order0 = CAFES.map((c,i) => [i, hav(state.origin,c)]).sort((a,b) => a[1]-b[1]).map(x => x[0]);
+    order0.forEach(i => res[i] = { loading:true });
+    state.calcAt = new Date(); state.mode = "est"; updateWhere(); renderAll();
+    try{
+      const { dur, dist } = await osrmAll(order0);
+      if (my !== run) return;
+      const f = congestion(state.calcAt);
+      order0.forEach((i, k) => { res[i] = dur[k] == null ? { err:"경로 없음" } : { sec: dur[k] * f, dist: dist[k] != null ? dist[k] : null, est:true }; });
+      const ok = {}; Object.keys(res).forEach(k => { if (res[k].sec != null) ok[k] = res[k]; });
+      LS.set("carCache", { k:key, t:state.calcAt.getTime(), r:ok, d:today(), mode:"est" });
+    }catch(e){
+      if (my !== run) return;
+      order0.forEach(i => res[i] = { err:"" });
+      toast("이동시간 서버에 연결하지 못했어요. 직선거리로 보여드릴게요");
+    }
+    renderAll(); return;
+  }
+  state.mode = "tmap";
+  Object.keys(res).forEach(k => delete res[k]);
+  const order = CAFES.map((c,i) => [i, hav(state.origin,c)]).sort((a,b) => a[1]-b[1]).map(x => x[0]);
+  order.forEach(i => res[i] = { loading:true });
+  state.calcAt = new Date(); updateWhere(); renderAll();
+  let fatal = null, ix = 0, netFails = 0;
+  async function worker(){
+    while (ix < order.length && !fatal && my === run){
+      const i = order[ix++];
+      try{ res[i] = await carRoute(i); }
+      catch(e){
+        if (e.status === 429){ await new Promise(r => setTimeout(r, 1200)); try{ res[i] = await carRoute(i); } catch(e2){ res[i] = { err:errMsg(e2) }; if (e2.status === 429) fatal = "오늘 TMAP 무료 한도를 다 썼어요"; } }
+        else { res[i] = { err:errMsg(e) }; if (e.status === 401 || e.status === 403) fatal = "TMAP 앱키를 확인해 주세요"; else if (e instanceof TypeError && ++netFails >= 3 && !Object.values(res).some(v => v.sec != null)) fatal = "TMAP에 연결하지 못했어요"; }
+      }
+      if (my !== run) return;
+      refreshMarker(i); scheduleList();
+    }
+  }
+  await Promise.all(Array.from({ length:CONFIG.CONCURRENCY }, worker));
+  if (my !== run) return;
+  if (fatal){ toast(fatal); order.forEach(i => { if (res[i] && res[i].loading) res[i] = { err:"" }; }); }
+  const ok = {}; Object.keys(res).forEach(k => { if (res[k].sec != null) ok[k] = res[k]; });
+  if (Object.keys(ok).length) LS.set("carCache", { k:key, t:state.calcAt.getTime(), r:ok, d:today(), mode:"tmap" });
+  renderAll();
+}
+
+/* ---------- 목록 ---------- */
+function match(c){
+  const t = c.t, f = state.f;
+  if (f.has("mine") && !c.m) return false;
+  if (f.has("park") && !["free","paid","yes"].includes(c.pk)) return false;
+  if (f.has("late") && !(t.includes("심야") || t.includes("24시"))) return false;
+  if (f.has("24") && !t.includes("24시")) return false;
+  if (f.has("work") && !t.includes("작업")) return false;
+  if (f.has("spec") && !t.includes("스페셜티")) return false;
+  return true;
+}
+function tmapUrl(c){ return `tmap://route?rGoName=${encodeURIComponent(c.n)}&rGoX=${c.lng}&rGoY=${c.lat}`; }
+const GO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8z"/></svg>';
+function card(i){
+  const c = CAFES[i], r = res[i], km = state.origin ? hav(state.origin, c) : null;
+  let tv;
+  if (r && r.sec != null) tv = `<div class="v">${r.est?"약 ":""}${fmtMin(r.sec)}</div><div class="s">${r.dist!=null?(r.dist/1000).toFixed(1)+"km · ":""}${clock(new Date((state.calcAt||new Date()).getTime() + r.sec*1000))} 도착</div>`;
+  else if (r && r.loading) tv = `<div class="v wait">계산 중</div><div class="s">${km!=null?"직선 "+fmtKm(km):""}</div>`;
+  else if (r && r.err) tv = `<div class="v err">${esc(r.err || "계산 안 됨")}</div><div class="s">${km!=null?"직선 "+fmtKm(km):""}</div>`;
+  else tv = `<div class="v wait">${km!=null?fmtKm(km):""}</div><div class="s">직선거리</div>`;
+  return `<article class="card ${c.m?"mine":""} ${state.sel===i?"sel":""}" id="c${i}" data-i="${i}">
+    <div class="ctop"><div><div class="cn">${esc(c.n)}${c.m?'<span class="badge">단골</span>':""}</div><div class="cr">${esc(c.r)}</div></div><div class="time">${tv}</div></div>
+    <div class="info"><span>영업 ${esc(c.h)}</span><span class="pk ${c.pk}">${PKL[c.pk]}</span></div>
+    ${c.memo?`<p class="memo">${esc(c.memo)}</p>`:""}
+    <a class="go" href="${tmapUrl(c)}">${GO}티맵으로 열기</a>
+  </article>`;
+}
+function order(){
+  const o = state.origin;
+  return CAFES.map((c,i) => i).filter(i => match(CAFES[i])).sort((a,b) => {
+    const ra = res[a], rb = res[b];
+    const va = ra && ra.sec != null ? ra.sec : 1e7 + (o ? hav(o,CAFES[a]) : 0);
+    const vb = rb && rb.sec != null ? rb.sec : 1e7 + (o ? hav(o,CAFES[b]) : 0);
+    return va - vb;
+  });
+}
+let listT = null;
+function scheduleList(){ if (listT) return; listT = setTimeout(() => { listT = null; renderList(); }, 250); }
+function renderList(){
+  const ids = order(), el = document.getElementById("list");
+  const st = el.scrollTop;
+  let html = "";
+  if (!appKey()) html += `<p class="note">차량 시간은 지금 시간대 혼잡을 대략 반영한 예상치예요. 실시간 시간은 티맵으로 열면 바로 보여요.</p>`;
+  if (state.sel != null && ids.includes(state.sel)) html += card(state.sel);
+  html += ids.filter(i => i !== state.sel).map(card).join("") || '<p class="empty">조건에 맞는 카페가 없어요</p>';
+  el.innerHTML = html; el.scrollTop = st;
+  const done = Object.values(res).filter(r => r.sec != null).length;
+  const loading = Object.values(res).filter(r => r.loading).length;
+  document.getElementById("sheetTitle").textContent = state.sel != null ? CAFES[state.sel].n : "가까운 카페";
+  document.getElementById("sheetMeta").textContent = loading ? `차량 시간 계산 중 ${done}/${done+loading}` : `${ids.length}곳 · 차 빠른 순`;
+}
+function renderAll(){ CAFES.forEach((c,i) => refreshMarker(i)); renderList(); }
+
+/* ---------- 선택 & 시트 ---------- */
+function setSheet(s){ document.body.classList.remove("half","full"); if (s) document.body.classList.add(s); }
+function select(i, fromMap){
+  const prev = state.sel; state.sel = i;
+  if (prev != null) refreshMarker(prev); refreshMarker(i);
+  renderList(); document.getElementById("list").scrollTop = 0;
+  if (!document.body.classList.contains("half") && !document.body.classList.contains("full")) setSheet("half");
+  const c = CAFES[i];
+  const y = map.getSize().y;
+  const pt = map.project([c.lat,c.lng], map.getZoom()).add([0, y*0.22]);
+  map.panTo(map.unproject(pt, map.getZoom()), { animate:true });
+}
+const grab = document.getElementById("grab");
+let sy = null, sh = null;
+grab.addEventListener("pointerdown", e => { sy = e.clientY; sh = document.getElementById("sheet").getBoundingClientRect().height; grab.setPointerCapture(e.pointerId); });
+grab.addEventListener("pointerup", e => {
+  if (sy == null) return; const dy = e.clientY - sy; sy = null;
+  const cur = document.body.classList.contains("full") ? 2 : document.body.classList.contains("half") ? 1 : 0;
+  let next = Math.abs(dy) < 8 ? (cur + 1) % 3 : dy < 0 ? Math.min(2, cur + 1) : Math.max(0, cur - 1);
+  setSheet(["", "half", "full"][next]);
+});
+document.getElementById("list").addEventListener("click", e => {
+  if (e.target.closest("[data-open]")){ openSet(); return; }
+  if (e.target.closest("a")) return;
+  const cd = e.target.closest(".card"); if (!cd) return;
+  const i = +cd.dataset.i; if (state.sel !== i) { select(i); }
+});
+
+/* ---------- 컨트롤 ---------- */
+document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+  const f = b.dataset.f; state.f.has(f) ? state.f.delete(f) : state.f.add(f);
+  b.setAttribute("aria-pressed", state.f.has(f));
+  if (f === "names") document.body.classList.toggle("showNames", state.f.has("names"));
+  renderAll();
+}));
+document.getElementById("gpsBtn").addEventListener("click", () => { if (state.src === "gps" && state.origin) fitAround(); else startGps(true); });
+document.getElementById("allBtn").addEventListener("click", () => map.fitBounds(bounds, { paddingTopLeft:[20,120], paddingBottomRight:[20,180] }));
+const mbg = document.getElementById("mbg");
+function openModal(id){ document.querySelectorAll(".modal").forEach(m => m.classList.remove("show")); document.getElementById(id).classList.add("show"); mbg.classList.add("show"); }
+function closeModal(){ document.querySelectorAll(".modal").forEach(m => m.classList.remove("show")); mbg.classList.remove("show"); }
+mbg.addEventListener("click", closeModal);
+function openSet(){ document.getElementById("keyIn").value = LS.get("tmapKey","") || ""; document.getElementById("keyIn").placeholder = CONFIG.TMAP_APP_KEY ? "페이지에 저장된 키 사용 중" : "SK open API App Key"; document.getElementById("qv").textContent = `${usage().n} / 1,000`; openModal("setModal"); }
+document.getElementById("setBtn").addEventListener("click", openSet);
+document.getElementById("saveBtn").addEventListener("click", () => { LS.set("tmapKey", document.getElementById("keyIn").value.trim()); closeModal(); calcAll(true); });
+document.getElementById("refreshBtn").addEventListener("click", () => { closeModal(); calcAll(true); });
+document.getElementById("whereBtn").addEventListener("click", () => openModal("whereModal"));
+document.getElementById("useGps").addEventListener("click", () => { closeModal(); startGps(true); });
+document.getElementById("useHome").addEventListener("click", () => { closeModal(); setOrigin({ lat:CONFIG.HOME.lat, lng:CONFIG.HOME.lng }, "home"); });
+document.getElementById("usePick").addEventListener("click", () => { closeModal(); setSheet(""); state.picking = true; toast("지도에서 출발할 곳을 눌러 주세요"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.origin && state.calcAt && Date.now() - state.calcAt.getTime() > CONFIG.TTL_MIN*60000) calcAll(true); });
+let tT = null;
+function toast(m){ const t = document.getElementById("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tT); tT = setTimeout(() => t.classList.remove("show"), 2600); }
+
+/* ---------- 시작 ---------- */
+const qKey = new URLSearchParams(location.search).get("key");
+if (qKey){ LS.set("tmapKey", qKey.trim()); history.replaceState(null, "", location.pathname); }
+renderAll(); updateWhere(); startGps(false);
+window.__app = { state, res, map, calcAll };
+})();
+</script>
+</body>
+</html>
