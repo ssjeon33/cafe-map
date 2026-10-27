@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#ffffff">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>작업 카페 지도</title>
@@ -212,10 +213,19 @@ let resKey = "";
 
 /* ---------- 지도 ---------- */
 const map = L.map("map", { zoomControl:false, attributionControl:true, tap:true });
-L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-  maxZoom:19, subdomains:"abcd",
-  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · 경로 OSRM'
-}).addTo(map);
+/* 배경 지도: 키 없이 쓰는 타일. 웹 주소(https)에선 OSM, 파일로 열면(Referer 없음) Esri로 */
+const TILES = {
+  osm:  { url:"https://tile.openstreetmap.org/{z}/{x}/{y}.png", opt:{ maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · 경로 OSRM' } },
+  esri: { url:"https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", opt:{ maxZoom:19, attribution:'Tiles &copy; Esri · 경로 OSRM' } }
+};
+let baseName = location.protocol === "file:" ? "esri" : "osm", base = null, tileErrs = 0;
+function useBase(name){
+  if (base) map.removeLayer(base);
+  baseName = name; tileErrs = 0;
+  base = L.tileLayer(TILES[name].url, TILES[name].opt).addTo(map);
+  base.on("tileerror", () => { if (++tileErrs >= 4) useBase(baseName === "osm" ? "esri" : "osm"); });
+}
+useBase(baseName);
 const bounds = L.latLngBounds(CAFES.map(c => [c.lat, c.lng]));
 map.fitBounds(bounds, { padding:[40,40], animate:false });
 
