@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="citrus">
 <head>
 <meta charset="utf-8">
+<meta name="theme-color" content="#f1faf8">
+<script>try{var t=JSON.parse(localStorage.getItem("theme"));if(t==="lavender"||t==="citrus")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='%23efebfc'/%3E%3Cpath d='M28 54h56v14c0 14.4-11.6 26-26 26h-4c-14.4 0-26-11.6-26-26V54z' fill='%238a78dc'/%3E%3Ccircle cx='56' cy='32' r='12' fill='%23f2c14e'/%3E%3Ccircle cx='62' cy='27' r='10' fill='%23efebfc'/%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>JSS 주경야독 풀캠동선</title>
@@ -673,23 +675,47 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <style>
 /* Layout: 네이버 지도 구조(검색바·칩·바텀시트 리스트) + 애플 지도 글래스 + 토스 컬러/타이포 */
 :root{
-  /* Toss grey scale & accents */
-  --g900:#2b2633; --g800:#3d3646; --g700:#564e60; --g600:#6a6373; --g500:#8f8898; --g400:#b3acb8; --g300:#e6dcb9; --g200:#f1e9cf; --g100:#fbf5df; --g50:#fffdf4;
-  --blue:#6e5cc9; --blue-d:#5a49b3; --blue-l:#efebfc; --green:#1f7a62; --green-l:#e2f5ee; --mint:#45b394; --butter:#f2c14e; --orange:#a35a10; --orange-l:#fcefdf; --red:#b0404d; --red-l:#fbe9ea;
-  --glass:rgba(255,253,242,.78); --glass-strong:rgba(255,254,246,.92); --glass-edge:rgba(255,255,255,.7);
-  --blur:saturate(180%) blur(22px);
-  --shadow:0 6px 24px rgba(80,60,90,.10), 0 1px 3px rgba(80,60,90,.06);
+  --blur:saturate(180%) blur(22px); --blur-sheet:saturate(190%) blur(30px);
   --font:"Noto Sans KR","Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;
   --peek:156px; --sat:env(safe-area-inset-top); --sab:env(safe-area-inset-bottom);
+  --red:#b0404d; --red-l:#fbe9ea; --glass-edge:rgba(255,255,255,.75);
   color-scheme:light;
+}
+/* 테마 1: 시트러스 민트 (#ff9f1c #ffbf69 #ffffff #cbf3f0 #2ec4b6) */
+:root,html[data-theme="citrus"]{
+  --g900:#1d2b2a; --g800:#2b3a38; --g700:#3f4e4c; --g600:#4f5e5c; --g500:#5f6e6b; --g400:#8fa19e; --g300:#cfe5e1; --g200:#e2f1ee; --g100:#eef8f6; --g50:#f7fcfb;
+  --bg:#f1faf8; --pri:#ff9f1c; --pri-d:#f08c00; --on-pri:#2a1700; --pri-shadow:rgba(255,159,28,.45);
+  --accent:#a85f00; --blue-l:#fff1db; --chip-on:#2ec4b6; --on-chip:#0b2b28;
+  --sec:rgba(255,191,105,.3); --sec-d:rgba(255,191,105,.5); --on-sec:#7a4a00;
+  --green:#137a70; --green-l:#d5f3ef; --mint:#2ec4b6; --me:#2ec4b6; --me-ring:rgba(46,196,182,.22);
+  --orange:#8a5200; --orange-l:#ffefd6;
+  --row-sel:rgba(255,191,105,.2); --line:rgba(29,43,42,.08); --han:#1f8f84;
+  --cup:#2ec4b6; --moon:#ff9f1c; --saucer:#1d2b2a; --focus:rgba(46,196,182,.6);
+  --glass:rgba(255,255,255,.74); --glass-strong:rgba(255,255,255,.92); --glass-sheet:rgba(248,255,253,.64);
+  --shadow:0 6px 24px rgba(20,60,56,.10), 0 1px 3px rgba(20,60,56,.06);
+  --tilef:saturate(.7) brightness(1.04);
+}
+/* 테마 2: 라벤더 스카이 (#f7f4ea #ded9e2 #c0b9dd #80a1d4 #75c9c8) */
+html[data-theme="lavender"]{
+  --g900:#262a3b; --g800:#34384a; --g700:#474b5f; --g600:#555a6f; --g500:#62667c; --g400:#9a99ad; --g300:#ddd8e3; --g200:#ebe7ee; --g100:#f2eff3; --g50:#faf8f3;
+  --bg:#f7f4ea; --pri:#80a1d4; --pri-d:#6c8fc6; --on-pri:#121a33; --pri-shadow:rgba(128,161,212,.5);
+  --accent:#4d6fae; --blue-l:#ece9f5; --chip-on:#80a1d4; --on-chip:#121a33;
+  --sec:rgba(192,185,221,.32); --sec-d:rgba(192,185,221,.55); --on-sec:#3e3a5c;
+  --green:#1f6766; --green-l:#dcf2f1; --mint:#75c9c8; --me:#80a1d4; --me-ring:rgba(128,161,212,.25);
+  --orange:#8a5200; --orange-l:#fbeedc;
+  --row-sel:rgba(192,185,221,.24); --line:rgba(38,42,59,.08); --han:#4f6fa6;
+  --cup:#80a1d4; --moon:#a79ed6; --saucer:#262a3b; --focus:rgba(128,161,212,.6);
+  --glass:rgba(255,253,247,.74); --glass-strong:rgba(255,253,247,.92); --glass-sheet:rgba(255,253,246,.64);
+  --shadow:0 6px 24px rgba(50,50,80,.10), 0 1px 3px rgba(50,50,80,.06);
+  --tilef:saturate(.6) sepia(.06) brightness(1.03) hue-rotate(4deg);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
-body{font-family:var(--font);color:var(--g900);background:#fff9e3;font-size:16px;line-height:1.45;letter-spacing:-.02em;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);color:var(--g900);background:var(--bg);font-size:16px;line-height:1.45;letter-spacing:-.02em;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;letter-spacing:inherit}
-button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid rgba(110,92,201,.45);outline-offset:2px}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 #map{position:fixed;inset:0;z-index:0}
-.leaflet-container{background:#fff9e3;font-family:var(--font)}
+.leaflet-container{background:var(--bg);font-family:var(--font)}
 .glass{background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-edge);box-shadow:var(--shadow)}
 
 /* ── 상단: 네이버식 검색바 + 칩 ── */
@@ -707,7 +733,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid rgba(
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;height:34px;padding:0 13px;border-radius:999px;font-size:14px;font-weight:600;color:var(--g700);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
 .chip svg{width:14px;height:14px}
-.chip[aria-pressed="true"]{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chip[aria-pressed="true"]{background:var(--chip-on);color:var(--on-chip);border-color:var(--chip-on)}
 
 .fabs{position:fixed;right:12px;z-index:550;display:grid;gap:10px;bottom:calc(var(--peek) + var(--sab) + 14px);transition:opacity .2s}
 .fab{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;color:var(--g800)}
@@ -715,38 +741,38 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid rgba(
 body.half .fabs,body.full .fabs{opacity:0;pointer-events:none}
 
 /* ── 지도 라벨/마커 ── */
-.lbl-gu{font-size:13px;font-weight:700;color:var(--g500);white-space:nowrap;transform:translate(-50%,-50%);text-shadow:0 0 3px #fffae6,0 0 3px #fffae6}
-.lbl-dong{font-size:11px;font-weight:500;color:var(--g400);white-space:nowrap;transform:translate(-50%,-50%);text-shadow:0 0 2px #fffae6,0 0 2px #fffae6}
-.lbl-han{font-size:13px;font-weight:700;color:#3f9c83;white-space:nowrap;transform:translate(-50%,-50%);letter-spacing:.4em}
+.lbl-gu{font-size:13px;font-weight:700;color:var(--g500);white-space:nowrap;transform:translate(-50%,-50%);text-shadow:0 0 3px var(--bg),0 0 3px var(--bg)}
+.lbl-dong{font-size:11px;font-weight:500;color:var(--g400);white-space:nowrap;transform:translate(-50%,-50%);text-shadow:0 0 2px var(--bg),0 0 2px var(--bg)}
+.lbl-han{font-size:13px;font-weight:700;color:var(--han);white-space:nowrap;transform:translate(-50%,-50%);letter-spacing:.4em}
 .mk{display:inline-flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%);white-space:nowrap;transition:opacity .2s}
 .mk .p{display:inline-flex;align-items:center;gap:5px;background:#fff;color:var(--g900);font-size:13px;font-weight:700;line-height:1;height:30px;padding:0 11px;border-radius:999px;box-shadow:0 2px 8px rgba(80,60,90,.18),0 0 0 1px rgba(80,60,90,.06);position:relative;font-variant-numeric:tabular-nums}
 .mk .p::after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;width:10px;height:10px;background:inherit;transform:rotate(45deg);border-radius:2px;box-shadow:2px 2px 3px rgba(80,60,90,.08)}
 .mk .d{width:7px;height:7px;border-radius:50%;background:var(--g400)}
 .mk.mine .d{background:var(--mint)}
 .mk.mine .p{color:var(--green)}
-.mk.sel .p{background:var(--blue);color:#fff;transform:scale(1.12);box-shadow:0 6px 16px rgba(110,92,201,.45)}
-.mk.sel .d{background:#fff}
+.mk.sel .p{background:var(--pri);color:var(--on-pri);transform:scale(1.12);box-shadow:0 6px 16px var(--pri-shadow)}
+.mk.sel .d{background:var(--on-pri)}
 .mk.dim{opacity:.28}
 .mk .n{display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--g800);text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
 .showNames .mk .n,.mk.sel .n{display:block}
-.me{width:22px;height:22px;border-radius:50%;background:var(--blue);border:4px solid #fff;box-shadow:0 0 0 8px rgba(110,92,201,.2),0 2px 6px rgba(80,60,90,.25)}
+.me{width:22px;height:22px;border-radius:50%;background:var(--me);border:4px solid #fff;box-shadow:0 0 0 8px var(--me-ring),0 2px 6px rgba(80,60,90,.25)}
 .pickhint{position:fixed;left:50%;top:calc(var(--sat) + 122px);transform:translateX(-50%);z-index:650;color:var(--g900);font-size:14px;font-weight:600;padding:10px 16px;border-radius:12px;display:none;white-space:nowrap}
 body.picking .pickhint{display:block}
 
 /* ── 바텀시트: 네이버 리스트 구조 ── */
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:700;border-radius:24px 24px 0 0;display:flex;flex-direction:column;height:calc(var(--peek) + var(--sab));transition:height .28s cubic-bezier(.2,.8,.2,1);max-width:640px;margin:0 auto;background:var(--glass-strong);border-bottom:0}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:700;border-radius:24px 24px 0 0;display:flex;flex-direction:column;height:calc(var(--peek) + var(--sab));transition:height .28s cubic-bezier(.2,.8,.2,1);max-width:640px;margin:0 auto;background:var(--glass-sheet);-webkit-backdrop-filter:var(--blur-sheet);backdrop-filter:var(--blur-sheet);border-bottom:0;box-shadow:0 -8px 30px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.9)}
 body.half .sheet{height:58%}
 body.full .sheet{height:calc(100% - var(--sat) - 70px)}
 .grab{flex:none;padding:8px 20px 10px;touch-action:none;cursor:pointer}
-.grab .h{width:36px;height:5px;border-radius:3px;background:var(--g300);margin:0 auto 12px}
+.grab .h{width:36px;height:5px;border-radius:3px;background:rgba(0,0,0,.14);margin:0 auto 12px}
 .grab .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .grab h2{font-size:19px;font-weight:700;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.grab h2 em{font-style:normal;color:var(--blue);margin-left:4px}
+.grab h2 em{font-style:normal;color:var(--accent);margin-left:4px}
 .sort{font-size:13px;font-weight:600;color:var(--g600);white-space:nowrap;display:flex;align-items:center;gap:2px}
 .grab .sub{font-size:12.5px;color:var(--g500);margin-top:3px}
 .list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 calc(var(--sab) + 20px)}
-.item{padding:16px 20px;display:grid;gap:6px;border-top:1px solid rgba(241,233,207,.95);cursor:pointer}
-.item.sel{background:rgba(239,235,252,.8)}
+.item{padding:16px 20px;display:grid;gap:6px;border-top:1px solid var(--line);cursor:pointer}
+.item.sel{background:var(--row-sel)}
 .it-top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
 .nm{font-size:17px;font-weight:700;line-height:1.35;color:var(--g900)}
 .nm .cat{font-size:13px;font-weight:500;color:var(--g500);margin-left:6px}
@@ -754,7 +780,7 @@ body.full .sheet{height:calc(100% - var(--sat) - 70px)}
 .tm{text-align:right;flex:none}
 .tm .v{font-size:22px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--g900)}
 .tm .v small{font-size:13px;font-weight:600;color:var(--g500);margin-right:2px}
-.item.sel .tm .v{color:var(--blue)}
+.item.sel .tm .v{color:var(--accent)}
 .tm .s{font-size:12px;color:var(--g500);white-space:nowrap;margin-top:2px}
 .line{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:13.5px;color:var(--g700);align-items:center}
 .line .dot{width:3px;height:3px;border-radius:50%;background:var(--g300)}
@@ -767,12 +793,12 @@ body.full .sheet{height:calc(100% - var(--sat) - 70px)}
 .acts{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px;margin-top:6px}
 .btn{display:flex;align-items:center;justify-content:center;gap:6px;height:46px;border-radius:14px;font-weight:700;font-size:15px;text-decoration:none}
 .btn svg{width:17px;height:17px}
-.btn.pri{background:var(--blue);color:#fff}
-.btn.pri:active{background:var(--blue-d)}
-.btn.sec{background:var(--g100);color:var(--g700)}
-.btn.sec:active{background:var(--g200)}
+.btn.pri{background:var(--pri);color:var(--on-pri);font-weight:800}
+.btn.pri:active{background:var(--pri-d)}
+.btn.sec{background:var(--sec);color:var(--on-sec)}
+.btn.sec:active{background:var(--sec-d)}
 .empty{text-align:center;color:var(--g500);padding:28px 0}
-.foot{font-size:12px;color:var(--g400);padding:14px 20px 0;line-height:1.5}
+.foot{font-size:12px;color:var(--g500);padding:14px 20px 0;line-height:1.5}
 
 /* ── 출발지 시트 ── */
 .mbg{position:fixed;inset:0;background:rgba(43,38,51,.32);z-index:900;display:none}
@@ -785,7 +811,7 @@ body.full .sheet{height:calc(100% - var(--sat) - 70px)}
 .opts{display:grid;gap:2px}
 .opt{display:flex;align-items:center;gap:12px;padding:12px 6px;border-radius:14px;text-align:left}
 .opt:active{background:var(--g100)}
-.opt .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--blue-l);color:var(--blue)}
+.opt .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--blue-l);color:var(--accent)}
 .opt .ic.g{background:var(--green-l);color:var(--green)}
 .opt .ic svg{width:19px;height:19px}
 .opt .tx{display:grid;gap:1px}
@@ -798,10 +824,13 @@ body.full .sheet{height:calc(100% - var(--sat) - 70px)}
 .help{font-size:12.5px;color:var(--g500);margin:0 6px;line-height:1.5}
 .toast{position:fixed;left:50%;bottom:calc(var(--peek) + var(--sab) + 20px);transform:translateX(-50%);background:rgba(43,38,51,.92);color:#fff;font-size:14px;font-weight:500;padding:12px 18px;border-radius:14px;z-index:1000;max-width:88vw;display:none;text-align:center}
 .toast.show{display:block}
-.leaflet-tile-pane{filter:saturate(.72) sepia(.14) brightness(1.04) hue-rotate(-6deg)}
+.leaflet-tile-pane{filter:var(--tilef)}
 .leaflet-bottom.leaflet-right{bottom:calc(var(--peek) + var(--sab))}
-.leaflet-control-attribution{font-size:10px;background:rgba(255,253,242,.75)!important}
-@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){ :root{ --glass:rgba(255,255,255,.96); --glass-strong:#fff; } }
+.leaflet-control-attribution{font-size:10px;background:var(--glass)!important}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){ html[data-theme]{ --glass:rgba(255,255,255,.96); --glass-strong:#fff; --glass-sheet:rgba(255,255,255,.97); } }
+.sw{width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(0,0,0,.12);background:linear-gradient(135deg,var(--sw1) 0 50%,var(--sw2) 50% 100%)}
+html[data-theme="citrus"] .sw{--sw1:#80a1d4;--sw2:#c0b9dd}
+html[data-theme="lavender"] .sw{--sw1:#ff9f1c;--sw2:#2ec4b6}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -810,8 +839,9 @@ body.full .sheet{height:calc(100% - var(--sat) - 70px)}
 
 <div class="top">
   <div class="search glass">
-    <span class="logo" aria-hidden="true"><svg viewBox="0 0 120 120"><defs><mask id="lgM"><rect x="0" y="0" width="120" height="120" fill="#000"></rect><circle cx="56" cy="30" r="14" fill="#fff"></circle><circle cx="63" cy="24" r="12" fill="#000"></circle></mask></defs><rect x="0" y="0" width="120" height="120" fill="#f2c14e" mask="url(#lgM)"></rect><path d="M80 12l1.8 4.6L86.5 18.4l-4.7 1.8L80 25l-1.8-4.8L73.5 18.4l4.7-1.8z" fill="#f2c14e"></path><path d="M28 54h56v14c0 14.4-11.6 26-26 26h-4c-14.4 0-26-11.6-26-26V54z" fill="#8a78dc"></path><path d="M84 60h5a10 10 0 0 1 0 20h-6" fill="none" stroke="#8a78dc" stroke-width="7" stroke-linecap="round"></path><path d="M22 106h68" fill="none" stroke="#564e60" stroke-width="6" stroke-linecap="round"></path></svg></span>
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 120 120"><defs><mask id="lgM"><rect x="0" y="0" width="120" height="120" fill="#000"></rect><circle cx="56" cy="30" r="14" fill="#fff"></circle><circle cx="63" cy="24" r="12" fill="#000"></circle></mask></defs><rect x="0" y="0" width="120" height="120" style="fill:var(--moon)" mask="url(#lgM)"></rect><path d="M80 12l1.8 4.6L86.5 18.4l-4.7 1.8L80 25l-1.8-4.8L73.5 18.4l4.7-1.8z" style="fill:var(--moon)"></path><path d="M28 54h56v14c0 14.4-11.6 26-26 26h-4c-14.4 0-26-11.6-26-26V54z" style="fill:var(--cup)"></path><path d="M84 60h5a10 10 0 0 1 0 20h-6" fill="none" style="stroke:var(--cup)" stroke-width="7" stroke-linecap="round"></path><path d="M22 106h68" fill="none" style="stroke:var(--saucer)" stroke-width="6" stroke-linecap="round"></path></svg></span>
     <button type="button" class="where" id="whereBtn" aria-label="출발지 바꾸기"><b id="whereT">집(고강동)</b><span id="whereS"></span></button>
+    <button type="button" class="ibtn" id="themeBtn" aria-label="테마 바꾸기"><span class="sw"></span></button>
     <button type="button" class="ibtn" id="refBtn" aria-label="지금 시간으로 다시 계산">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg>
     </button>
@@ -899,10 +929,14 @@ const state = { origin:null, label:"", f:new Set(), sel:null, at:new Date(), sp:
 const map = L.map("map", { zoomControl:false, attributionControl:true, minZoom:10, maxZoom:18, zoomSnap:0.5, preferCanvas:false });
 map.attributionControl.setPrefix(false);
 const baseGroup = L.layerGroup().addTo(map);
-BASE.gu.forEach((g,i) => L.geoJSON(g.geo, { style: { color:"#ebdfb3", weight:1.4, fillColor: i % 2 ? "#fff4d2" : "#fffae6", fillOpacity:1 }, interactive:false }).addTo(baseGroup));
-const dongLayer = L.geoJSON({ type:"FeatureCollection", features: BASE.dong.map(d => ({ type:"Feature", properties:{}, geometry:d.geo })) }, { style:{ color:"#f3e8c4", weight:.8, fill:false }, interactive:false }).addTo(baseGroup);
+const MAPC = { citrus:{ gu:["#f1faf8","#e6f6f3"], line:"#c3e7e1", dong:"#dbf0ec", han:"#a8e2db", bg:"#f1faf8", name:"시트러스 민트" }, lavender:{ gu:["#f7f4ea","#efebe6"], line:"#dbd3e0", dong:"#e9e4ea", han:"#cddbf2", bg:"#f7f4ea", name:"라벤더 스카이" } };
+let theme = document.documentElement.getAttribute("data-theme") === "lavender" ? "lavender" : "citrus";
+const guLayers = [];
+BASE.gu.forEach((g,i) => guLayers.push(L.geoJSON(g.geo, { style: { color:MAPC[theme].line, weight:1.4, fillColor: MAPC[theme].gu[i % 2], fillOpacity:1 }, interactive:false }).addTo(baseGroup)));
+const dongLayer = L.geoJSON({ type:"FeatureCollection", features: BASE.dong.map(d => ({ type:"Feature", properties:{}, geometry:d.geo })) }, { style:{ color:MAPC[theme].dong, weight:.8, fill:false }, interactive:false }).addTo(baseGroup);
+let hanLayer = null;
 if (BASE.han){
-  L.geoJSON(BASE.han, { style:{ color:"#cdeade", weight:15, opacity:1, lineCap:"round", lineJoin:"round" }, interactive:false }).addTo(baseGroup);
+  hanLayer = L.geoJSON(BASE.han, { style:{ color:MAPC[theme].han, weight:15, opacity:1, lineCap:"round", lineJoin:"round" }, interactive:false }).addTo(baseGroup);
   L.marker([37.552, 126.875], { icon:L.divIcon({ className:"", html:'<div class="lbl-han">한강</div>', iconSize:null }), interactive:false }).addTo(baseGroup);
 }
 const guLabels = BASE.gu.map(g => L.marker(g.lp, { icon:L.divIcon({ className:"", html:`<div class="lbl-gu">${esc(g.n)}</div>`, iconSize:null }), interactive:false }));
@@ -932,6 +966,21 @@ function useTiles(ix){
   tileLayer.on("tileerror", () => { if (++errs >= 4 && oks < 3) useTiles(ix + 1); });
 }
 useTiles(0);
+const FAV = k => { const c = k === "lavender" ? ["%23ece9f5","%2380a1d4","%23a79ed6"] : ["%23fff1db","%232ec4b6","%23ff9f1c"]; return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='${c[0]}'/%3E%3Cpath d='M28 54h56v14c0 14.4-11.6 26-26 26h-4c-14.4 0-26-11.6-26-26V54z' fill='${c[1]}'/%3E%3Ccircle cx='56' cy='32' r='12' fill='${c[2]}'/%3E%3Ccircle cx='62' cy='27' r='10' fill='${c[0]}'/%3E%3C/svg%3E`; };
+function applyTheme(k, say){
+  theme = k; const m = MAPC[k];
+  document.documentElement.setAttribute("data-theme", k);
+  LS.set("theme", k);
+  guLayers.forEach((l,i) => l.setStyle({ color:m.line, fillColor:m.gu[i % 2] }));
+  dongLayer.setStyle({ color:m.dong });
+  if (hanLayer) hanLayer.setStyle({ color:m.han });
+  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.setAttribute("content", m.bg);
+  const fv = document.querySelector('link[rel="icon"]'); if (fv) fv.setAttribute("href", FAV(k));
+  document.getElementById("themeBtn").setAttribute("aria-label", `테마 바꾸기 (지금: ${m.name})`);
+  if (say) toast(`테마: ${m.name}`);
+}
+applyTheme(theme, false);
+document.getElementById("themeBtn").addEventListener("click", () => applyTheme(theme === "citrus" ? "lavender" : "citrus", true));
 const bounds = L.latLngBounds(CAFES.map(c => [c.lat, c.lng]));
 map.setMaxBounds(L.latLngBounds([37.30, 126.50], [37.80, 127.30]));
 map.fitBounds(bounds, { paddingTopLeft:[20,130], paddingBottomRight:[20,180], animate:false });
