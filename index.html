@@ -755,7 +755,8 @@ body.half .fabs,body.full .fabs{opacity:0;pointer-events:none}
 .mk.dim{opacity:.28}
 .mk .n{display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--g800);text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
 .showNames .mk .n,.mk.sel .n{display:block}
-.me{width:22px;height:22px;border-radius:50%;background:var(--me);border:4px solid #fff;box-shadow:0 0 0 8px var(--me-ring),0 2px 6px rgba(80,60,90,.25)}
+.me{width:44px;height:44px;border-radius:50%;background:#fff;display:grid;place-items:center;transform:translate(-50%,-50%);box-shadow:0 0 0 11px var(--me-ring),0 3px 8px rgba(0,0,0,.2)}
+.me svg{width:31px;height:31px;display:block}
 .pickhint{position:fixed;left:50%;top:calc(var(--sat) + 122px);transform:translateX(-50%);z-index:650;color:var(--g900);font-size:14px;font-weight:600;padding:10px 16px;border-radius:12px;display:none;white-space:nowrap}
 body.picking .pickhint{display:block}
 
@@ -1010,7 +1011,7 @@ function refreshMarker(i){ markers[i].setIcon(L.divIcon({ className:"", html:mkH
 let meM = null;
 function drawMe(){
   const ll = [state.origin.lat, state.origin.lng];
-  if (!meM) meM = L.marker(ll, { icon:L.divIcon({ className:"", html:'<div class="me"></div>', iconSize:[20,20], iconAnchor:[10,10] }), interactive:false, zIndexOffset:3000 }).addTo(map);
+  if (!meM) meM = L.marker(ll, { icon:L.divIcon({ className:"", html:'<div class="me" role="img" aria-label="현재 출발지"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M28 54h56v14c0 14.4-11.6 26-26 26h-4c-14.4 0-26-11.6-26-26V54z" style="fill:var(--cup)"></path><path d="M84 60h5a10 10 0 0 1 0 20h-6" fill="none" style="stroke:var(--cup)" stroke-width="8" stroke-linecap="round"></path><path d="M60 22a12 12 0 1 0 0 20a10 10 0 1 1 0-20z" style="fill:var(--moon)"></path><path d="M22 106h68" fill="none" style="stroke:var(--saucer)" stroke-width="8" stroke-linecap="round"></path></svg></div>', iconSize:null }), interactive:false, zIndexOffset:3000 }).addTo(map);
   else meM.setLatLng(ll);
 }
 
