@@ -669,14 +669,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
 		}
 	}
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="preload" href="fonts/Paperlogy-7Bold.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face{font-family:"Paperlogy";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/Paperlogy-4Regular.woff2") format("woff2")}
+@font-face{font-family:"Paperlogy";font-weight:500;font-style:normal;font-display:swap;src:url("fonts/Paperlogy-5Medium.woff2") format("woff2")}
+@font-face{font-family:"Paperlogy";font-weight:600;font-style:normal;font-display:swap;src:url("fonts/Paperlogy-6SemiBold.woff2") format("woff2")}
+@font-face{font-family:"Paperlogy";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/Paperlogy-7Bold.woff2") format("woff2")}
+@font-face{font-family:"Paperlogy";font-weight:800;font-style:normal;font-display:swap;src:url("fonts/Paperlogy-8ExtraBold.woff2") format("woff2")}
 /* Layout: 네이버 지도 구조(검색바·칩·바텀시트 리스트) + 애플 지도 글래스 + 토스 컬러/타이포 */
 :root{
   --blur:saturate(180%) blur(22px); --blur-sheet:saturate(190%) blur(30px);
-  --font:"Noto Sans KR","Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;
+  --font:"Paperlogy","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
   --peek:156px; --sat:env(safe-area-inset-top); --sab:env(safe-area-inset-bottom);
   --red:#b0404d; --red-l:#fbe9ea; --glass-edge:rgba(255,255,255,.75);
   color-scheme:light;
@@ -711,7 +715,7 @@ html[data-theme="lavender"]{
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
-body{font-family:var(--font);color:var(--g900);background:var(--bg);font-size:16px;line-height:1.45;letter-spacing:-.02em;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);color:var(--g900);background:var(--bg);font-size:16px;line-height:1.45;letter-spacing:0;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;letter-spacing:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 #map{position:fixed;inset:0;z-index:0}
