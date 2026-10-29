@@ -834,6 +834,15 @@ body.full .sheet{height:calc(100% - var(--sat) - 70px)}
 .pv-s img{width:100%;max-height:64vh;object-fit:contain;border-radius:14px;background:rgba(255,255,255,.06)}
 .pv-s figcaption{font-size:12px;color:rgba(255,255,255,.75);text-align:center}
 .pv-s figcaption a{color:#fff}
+.pv-acts{display:flex;gap:8px}
+.pv-b{height:40px;padding:0 14px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:#fff;background:rgba(255,255,255,.16);cursor:pointer}
+.pv-b.pri{background:var(--pri);color:var(--on-pri)}
+.pv-b svg{width:16px;height:16px}
+.pv-b[hidden]{display:none}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pv-links{display:flex;gap:16px;justify-content:center;padding:12px 18px 0;font-size:13px}
+.pv-links a{color:rgba(255,255,255,.85);text-decoration:underline}
+.pv-links a[hidden]{display:none}
 .pv-msg{margin:auto;color:#fff;text-align:center;font-size:15px;padding:0 30px;line-height:1.6}
 .pv-msg a{color:#fff;font-weight:700}
 .pv-foot{display:flex;justify-content:space-between;align-items:center;padding:10px 18px 0;color:rgba(255,255,255,.75);font-size:12.5px}
@@ -943,7 +952,8 @@ html[data-theme="lavender"] .sw{--sw1:#ff9f1c;--sw2:#2ec4b6}
 <section class="pv" id="pv" role="dialog" aria-modal="true" aria-labelledby="pvT">
   <div class="pv-top"><b id="pvT">내부 사진</b><button type="button" class="pv-x" id="pvX" aria-label="사진 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="pv-s" id="pvS"></div>
-  <div class="pv-foot"><span id="pvN"></span><a id="pvG" href="#" target="_blank" rel="noopener">Google 지도에서 더 보기</a></div>
+  <div class="pv-foot"><span id="pvN"></span><span class="pv-acts"><button type="button" class="pv-b" id="pvDel" hidden>이 사진 삭제</button><label class="pv-b pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>사진 추가<input type="file" id="pvIn" class="vh" accept="image/*" multiple></label></span></div>
+  <div class="pv-links"><a id="pvNv" href="#" target="_blank" rel="noopener">네이버에서 사진 찾기</a><a id="pvG" href="#" target="_blank" rel="noopener">Google 지도</a></div>
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -1159,7 +1169,7 @@ function card(i){
     <div class="line"><span class="pk ${c.pk}">${PKL[c.pk]}</span></div>
     ${state.sel === i ? depHtml(i) : ""}
     ${c.memo?`<p class="memo">${esc(c.memo)}</p>`:""}
-    <div class="acts"><a class="btn pri" href="${tmap}" target="_top">${NAV_I}티맵 길안내</a><a class="btn sec" href="${photo}" target="_blank" rel="noopener" data-photo="${i}">${PIC_I}내부 사진</a><a class="btn sec" href="${kakao}" target="_blank" rel="noopener">카카오맵</a></div>
+    <div class="acts"><a class="btn pri" href="${tmap}" target="_top">${NAV_I}티맵 길안내</a><a class="btn sec" href="${photo}" target="_blank" rel="noopener" data-photo="${i}">${PIC_I}내부 사진${PCOUNT[c.pid] ? ` ${PCOUNT[c.pid]}` : ""}</a><a class="btn sec" href="${kakao}" target="_blank" rel="noopener">카카오맵</a></div>
   </article>`;
 }
 function ohHtml(i){
@@ -1258,7 +1268,7 @@ grab.addEventListener("pointerup", e => {
 });
 document.getElementById("list").addEventListener("click", e => {
   const ph = e.target.closest("a[data-photo]");
-  if (ph && GKEY){ e.preventDefault(); openPhotos(+ph.dataset.photo); return; }
+  if (ph){ e.preventDefault(); openPhotos(+ph.dataset.photo); return; }
   if (e.target.closest("a")) return;
   const cd = e.target.closest(".item"); if (cd && +cd.dataset.i !== state.sel) select(+cd.dataset.i);
 });
@@ -1304,42 +1314,104 @@ document.getElementById("dongR").addEventListener("click", e => {
 document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - state.at.getTime() > 5 * 60000) recalc(); });
 setInterval(() => { if (!document.hidden) recalc(); }, 10 * 60000);
 let tT = null;
-/* ---------- 사진 보기 (Google Places API) ---------- */
+/* ---------- 사진 보기: 내 폰에만 저장되는 사진첩 (+ 선택: Google Places) ---------- */
+const PCOUNT = {};
+const PDB = (() => {
+  let dbp = null;
+  const db = () => dbp || (dbp = new Promise((res, rej) => {
+    try{
+      const r = indexedDB.open("jss-photos", 1);
+      r.onupgradeneeded = () => { const s = r.result.createObjectStore("p", { keyPath:"id", autoIncrement:true }); s.createIndex("pid", "pid"); };
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    }catch(err){ rej(err); }
+  }));
+  const run = async (mode, fn) => { const d = await db(); return new Promise((res, rej) => { const t = d.transaction("p", mode); const out = fn(t.objectStore("p")); t.oncomplete = () => res(out instanceof IDBRequest ? out.result : out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error); }); };
+  return {
+    list: pid => run("readonly", s => s.index("pid").getAll(pid)),
+    add: rec => run("readwrite", s => s.add(rec)),
+    del: id => run("readwrite", s => s.delete(id)),
+    counts: () => run("readonly", s => { const m = {}; const r = s.index("pid").openKeyCursor(); r.onsuccess = () => { const c = r.result; if (c){ m[c.key] = (m[c.key] || 0) + 1; c.continue(); } }; return m; })
+  };
+})();
+async function loadCounts(){ try{ const m = await PDB.counts(); Object.keys(PCOUNT).forEach(k => delete PCOUNT[k]); Object.assign(PCOUNT, m); renderList(); }catch(err){} }
+async function shrink(file){
+  let src, url = null;
+  try{ src = await createImageBitmap(file, { imageOrientation:"from-image" }); }
+  catch(err){ url = URL.createObjectURL(file); src = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; }); }
+  const W = src.width, H = src.height, k = Math.min(1, 1400 / Math.max(W, H));
+  const cv = document.createElement("canvas"); cv.width = Math.round(W * k); cv.height = Math.round(H * k);
+  cv.getContext("2d").drawImage(src, 0, 0, cv.width, cv.height);
+  if (url) URL.revokeObjectURL(url);
+  return await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error("toBlob")), "image/jpeg", 0.85));
+}
 const pv = document.getElementById("pv"), pvS = document.getElementById("pvS");
-let pvRun = 0;
-function closePhotos(){ pv.classList.remove("show"); pvS.innerHTML = ""; pvRun++; }
+let pvRun = 0, pvCafe = null, pvUrls = [];
+const clearUrls = () => { pvUrls.forEach(u => URL.revokeObjectURL(u)); pvUrls = []; };
+function pvCur(){ return pvS.clientWidth ? Math.round(pvS.scrollLeft / pvS.clientWidth) : 0; }
+function pvSync(){
+  const figs = pvS.querySelectorAll("figure"), cur = pvCur();
+  document.getElementById("pvN").textContent = figs.length > 1 ? `${cur + 1} / ${figs.length}` : "";
+  document.getElementById("pvDel").hidden = !(figs[cur] && figs[cur].dataset.id);
+  const nx = pvS.querySelectorAll("img")[cur + 1]; if (nx && nx.dataset.src){ nx.src = nx.dataset.src; delete nx.dataset.src; }
+}
+function closePhotos(){ pv.classList.remove("show"); pvS.innerHTML = ""; clearUrls(); pvRun++; pvCafe = null; }
 document.getElementById("pvX").addEventListener("click", closePhotos);
 document.addEventListener("keydown", e => { if (e.key === "Escape" && pv.classList.contains("show")) closePhotos(); });
-pvS.addEventListener("scroll", () => {
-  const n = pvS.children.length, cur = Math.round(pvS.scrollLeft / pvS.clientWidth);
-  if (n > 1) document.getElementById("pvN").textContent = `${cur + 1} / ${n}`;
-  const nx = pvS.querySelectorAll("img")[cur + 1]; if (nx && nx.dataset.src){ nx.src = nx.dataset.src; delete nx.dataset.src; }
-});
-async function openPhotos(i){
+pvS.addEventListener("scroll", pvSync);
+async function renderPhotos(goLast){
+  const i = pvCafe; if (i == null) return;
   const c = CAFES[i], my = ++pvRun;
-  const gurl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.n)}&query_place_id=${c.pid}`;
+  let local = [], dbOk = true;
+  try{ local = await PDB.list(c.pid); }catch(err){ dbOk = false; }
+  if (my !== pvRun) return;
+  clearUrls();
+  const figs = local.sort((x, y) => x.t - y.t).map((r, k) => { const u = URL.createObjectURL(r.blob); pvUrls.push(u); return `<figure data-id="${r.id}"><img src="${u}" alt="${esc(c.n)} 사진 ${k + 1}"><figcaption>내 폰에 저장한 사진</figcaption></figure>`; });
+  if (GKEY){
+    try{
+      const r = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(c.pid)}?fields=photos&languageCode=ko&key=${GKEY}`);
+      const d = await r.json();
+      if (my !== pvRun) return;
+      (d.photos || []).slice(0, 6).forEach((p, k) => {
+        const au = (p.authorAttributions || []).map(x => x.uri ? `<a href="${esc(x.uri)}" target="_blank" rel="noopener">${esc(x.displayName || "Google 사용자")}</a>` : esc(x.displayName || "")).join(", ");
+        const lazy = figs.length + k >= 2;
+        figs.push(`<figure><img ${lazy ? "data-src" : "src"}="https://places.googleapis.com/v1/${p.name}/media?maxWidthPx=900&key=${GKEY}" alt="${esc(c.n)} Google 사진 ${k + 1}"><figcaption>Google 지도 · ${au || "사용자 사진"}</figcaption></figure>`);
+      });
+    }catch(err){}
+  }
+  if (my !== pvRun) return;
+  const nv = document.getElementById("pvNv").href;
+  pvS.innerHTML = figs.length ? figs.join("") : (dbOk
+    ? `<p class="pv-msg">아직 등록한 사진이 없어요.<br>아래 <b>사진 추가</b>로 앨범 사진을 고르면<br>이 폰에만 계속 저장돼요.<br><br><a href="${nv}" target="_blank" rel="noopener">네이버에서 내부 사진 찾아보기</a></p>`
+    : `<p class="pv-msg">이 링크에서는 사진을 저장할 수 없어요.<br>ssjeon33.github.io/cafe-map 주소로 열어 주세요.</p>`);
+  pvS.scrollLeft = goLast ? pvS.scrollWidth : 0;
+  pvSync();
+}
+async function openPhotos(i){
+  const c = CAFES[i]; pvCafe = i;
   document.getElementById("pvT").textContent = c.n;
-  document.getElementById("pvG").href = gurl;
-  document.getElementById("pvN").textContent = "";
+  document.getElementById("pvG").href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.n)}&query_place_id=${c.pid}`;
+  document.getElementById("pvNv").href = `https://search.naver.com/search.naver?where=image&query=${encodeURIComponent(c.n + " 내부")}`;
   pvS.innerHTML = '<p class="pv-msg">사진을 불러오는 중…</p>';
   pv.classList.add("show");
-  try{
-    const r = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(c.pid)}?fields=photos&languageCode=ko&key=${GKEY}`);
-    const d = await r.json();
-    if (my !== pvRun) return;
-    const ph = (d.photos || []).slice(0, 6);
-    if (!r.ok || !ph.length) throw new Error(d.error ? d.error.message : "no photos");
-    pvS.innerHTML = ph.map((p, k) => {
-      const au = (p.authorAttributions || []).map(x => x.uri ? `<a href="${esc(x.uri)}" target="_blank" rel="noopener">${esc(x.displayName || "Google 사용자")}</a>` : esc(x.displayName || "")).join(", ");
-      return `<figure><img ${k < 2 ? "src" : "data-src"}="https://places.googleapis.com/v1/${p.name}/media?maxWidthPx=900&key=${GKEY}" alt="${esc(c.n)} 사진 ${k + 1}"><figcaption>사진: ${au || "Google 지도"}</figcaption></figure>`;
-    }).join("");
-    pvS.scrollLeft = 0;
-    document.getElementById("pvN").textContent = ph.length > 1 ? `1 / ${ph.length}` : "";
-  }catch(err){
-    if (my !== pvRun) return;
-    pvS.innerHTML = `<p class="pv-msg">사진을 불러오지 못했어요.<br><a href="${gurl}" target="_blank" rel="noopener">Google 지도에서 보기</a></p>`;
-  }
+  await renderPhotos(false);
 }
+document.getElementById("pvIn").addEventListener("change", async e => {
+  const files = [...e.target.files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name)); e.target.value = "";
+  if (pvCafe == null || !files.length) return;
+  const pid = CAFES[pvCafe].pid; let n = 0;
+  toast("사진을 저장하는 중…");
+  for (const f of files){ try{ const blob = await shrink(f); await PDB.add({ pid, blob, t:Date.now() + n }); n++; }catch(err){} }
+  if (n){ try{ if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(err){} }
+  toast(n ? `사진 ${n}장을 이 폰에 저장했어요` : "사진을 저장하지 못했어요");
+  await loadCounts(); await renderPhotos(true);
+});
+document.getElementById("pvDel").addEventListener("click", async () => {
+  const f = pvS.querySelectorAll("figure")[pvCur()]; if (!f || !f.dataset.id) return;
+  if (!window.confirm("이 사진을 삭제할까요?")) return;
+  try{ await PDB.del(+f.dataset.id); }catch(err){}
+  await loadCounts(); await renderPhotos(false);
+});
+loadCounts();
 function toast(m){ const t = document.getElementById("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tT); tT = setTimeout(() => t.classList.remove("show"), 2400); }
 
 /* ---------- 시작 ---------- */
