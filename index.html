@@ -953,7 +953,7 @@ html[data-theme="lavender"] .sw{--sw1:#ff9f1c;--sw2:#2ec4b6}
   <div class="pv-top"><b id="pvT">내부 사진</b><button type="button" class="pv-x" id="pvX" aria-label="사진 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="pv-s" id="pvS"></div>
   <div class="pv-foot"><span id="pvN"></span><span class="pv-acts"><button type="button" class="pv-b" id="pvDel" hidden>이 사진 삭제</button><label class="pv-b pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>사진 추가<input type="file" id="pvIn" class="vh" accept="image/*" multiple></label></span></div>
-  <div class="pv-links"><a id="pvNv" href="#" target="_blank" rel="noopener">네이버에서 사진 찾기</a><a id="pvG" href="#" target="_blank" rel="noopener">Google 지도</a></div>
+  <div class="pv-links"><a id="pvNv" href="#" target="_blank" rel="noopener">네이버 플레이스 사진 보기</a><a id="pvG" href="#" target="_blank" rel="noopener">Google 지도</a></div>
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -1381,7 +1381,7 @@ async function renderPhotos(goLast){
   if (my !== pvRun) return;
   const nv = document.getElementById("pvNv").href;
   pvS.innerHTML = figs.length ? figs.join("") : (dbOk
-    ? `<p class="pv-msg">아직 등록한 사진이 없어요.<br>아래 <b>사진 추가</b>로 앨범 사진을 고르면<br>이 폰에만 계속 저장돼요.<br><br><a href="${nv}" target="_blank" rel="noopener">네이버에서 내부 사진 찾아보기</a></p>`
+    ? `<p class="pv-msg">아직 등록한 사진이 없어요.<br>아래 <b>사진 추가</b>로 앨범 사진을 고르면<br>이 폰에만 계속 저장돼요.<br><br><a href="${nv}" target="_blank" rel="noopener">네이버 플레이스에서 사진 보기</a></p>`
     : `<p class="pv-msg">이 링크에서는 사진을 저장할 수 없어요.<br>ssjeon33.github.io/cafe-map 주소로 열어 주세요.</p>`);
   pvS.scrollLeft = goLast ? pvS.scrollWidth : 0;
   pvSync();
@@ -1390,7 +1390,7 @@ async function openPhotos(i){
   const c = CAFES[i]; pvCafe = i;
   document.getElementById("pvT").textContent = c.n;
   document.getElementById("pvG").href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.n)}&query_place_id=${c.pid}`;
-  document.getElementById("pvNv").href = `https://search.naver.com/search.naver?where=image&query=${encodeURIComponent(c.n + " 내부")}`;
+  document.getElementById("pvNv").href = `https://m.search.naver.com/search.naver?query=${encodeURIComponent(c.n)}`;
   pvS.innerHTML = '<p class="pv-msg">사진을 불러오는 중…</p>';
   pv.classList.add("show");
   await renderPhotos(false);
