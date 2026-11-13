@@ -1215,6 +1215,7 @@ const GLC = {
   lavender:{ bg:"#f7f4ea", land:"#faf8f1", park:"#d6eadf", wood:"#cbe3d6", water:"#cddbf2", road:"#ffffff", roadCase:"#e0dae6", major:"#e6e0f5", majorCase:"#c7bfe2", bld:"#ebe6ee", bldLine:"#d9d2df", rail:"#c6c1d2", text:"#474b5f", sub:"#62667c", halo:"#faf8f3", waterText:"#4f6fa6", stn:"#34384a", stnText:"#262a3b", civic:"#f3ecdf", bound:"#d5cddc" }
 };
 let glLayer = null, glSrc = null;
+const glLog = []; window.__jss = { glLog, gl:() => glLayer && glLayer.getMaplibreMap() };
 function glStyle(k){
   const T = GLC[k] || GLC.citrus, st = JSON.parse(JSON.stringify(glSrc.raw));
   const drop = new Set(["natural_earth","building-3d","poi_r20","poi_r7","poi_transit","road_one_way_arrow","road_one_way_arrow_opposite","highway-shield-non-us","highway-shield-us-interstate","road_shield_us","road_area_pattern","airport"]);
@@ -1263,21 +1264,23 @@ async function useGL(){
     const j = async u => { const r = await fetch(u); if (!r.ok) throw new Error(u + " " + r.status); return r.json(); };
     const [raw, tj] = await Promise.all([j("https://tiles.openfreemap.org/styles/liberty"), j("https://tiles.openfreemap.org/planet")]);
     if (!tj.tiles || !tj.tiles.length) throw new Error("no tiles");
-    glSrc = { raw, tj };
+    glSrc = { raw, tj }; glLog.push("style " + Math.round(performance.now()));
     /* 타일을 메인 스레드에서 받아 워커에 넘긴다(일부 브라우저에서 워커 요청이 막히는 경우 대비) */
     maplibregl.addProtocol("ofm", async (p, ac) => { const r = await fetch(p.url.replace("ofm://", "https://"), { signal:ac.signal }); if (!r.ok) throw new Error("tile " + r.status); return { data:await r.arrayBuffer() }; });
     try{ await Promise.race([Promise.all([document.fonts.load('400 14px "Paperlogy"'), document.fonts.load('700 14px "Paperlogy"')]), new Promise(r => setTimeout(r, 2500))]); }catch(e){}
     map.createPane("glPane").style.zIndex = 150;
     glLayer = L.maplibreGL({ style:glStyle(theme), pane:"glPane", localIdeographFontFamily:"'Paperlogy','Apple SD Gothic Neo','Noto Sans KR',sans-serif" }).addTo(map);
+    const gm0 = glLayer.getMaplibreMap(); glLog.push("map " + Math.round(performance.now()));
+    gm0.on("error", e => { if (glLog.length < 40) glLog.push("err " + String(e && e.error && e.error.message || e && e.error || e).slice(0, 160)); });
     let done = false;
-    const fail = () => { if (done) return; done = true; glRestyle = null; try{ map.removeLayer(glLayer); }catch(e){} glLayer = null; useTiles(0); };
+    const fail = () => { if (done) return; glLog.push("timeout " + [gm0.loaded(), gm0.isStyleLoaded(), gm0.areTilesLoaded()].join(",")); done = true; glRestyle = null; try{ map.removeLayer(glLayer); }catch(e){} glLayer = null; useTiles(0); };
     const timer = setTimeout(fail, 10000);
     glLayer.getMaplibreMap().once("load", () => {
-      if (done) return; done = true; clearTimeout(timer);
+      glLog.push("load " + Math.round(performance.now())); if (done) return; done = true; clearTimeout(timer);
       tilesOk = true; if (map.hasLayer(baseGroup)) map.removeLayer(baseGroup); labelsByZoom();
     });
     glRestyle = k => { if (glLayer) glLayer.getMaplibreMap().setStyle(glStyle(k)); };
-  }catch(e){ glRestyle = null; useTiles(0); }
+  }catch(e){ glLog.push("catch " + String(e && e.message || e)); glRestyle = null; useTiles(0); }
 }
 useGL();
 const FAV = k => { const c = k === "lavender" ? ["%23ece9f5","%2380a1d4","%23a79ed6"] : ["%23fff1db","%232ec4b6","%23ff9f1c"]; return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='28' fill='${c[0]}'/%3E%3Cpath d='M28 54h56v14c0 14.4-11.6 26-26 26h-4c-14.4 0-26-11.6-26-26V54z' fill='${c[1]}'/%3E%3Ccircle cx='56' cy='32' r='12' fill='${c[2]}'/%3E%3Ccircle cx='62' cy='27' r='10' fill='${c[0]}'/%3E%3C/svg%3E`; };
