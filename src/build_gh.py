@@ -131,20 +131,34 @@ rep('''function recalc(){
   document.getElementById("whereT").textContent = state.label;
   document.getElementById("whereS").textContent = `${clock(state.at)} 출발 · ${state.sp.l} 기준 차량 예상`;
   renderAll();
-}''','''let homeReq = false;
+}''','''/* 공개 OSRM 서버는 한 번에 좌표 100개까지라 카페를 80곳씩 나눠 요청한다 */
+async function osrmTable(p, toP){
+  const dur = [], dist = [];
+  for (let s = 0; s < CAFES.length; s += 80){
+    const part = CAFES.slice(s, s + 80);
+    const coords = [[p.lng,p.lat], ...part.map(c => [c.lng, c.lat])].map(q => q[0].toFixed(5) + "," + q[1].toFixed(5)).join(";");
+    let ok = false;
+    for (const host of ["https://routing.openstreetmap.de/routed-car", "https://router.project-osrm.org"]){
+      try{
+        const r = await fetch(`${host}/table/v1/driving/${coords}?${toP ? "destinations=0&annotations=duration" : "sources=0&annotations=duration,distance"}`);
+        const d = await r.json();
+        if (r.ok && d.code === "Ok"){
+          if (toP) dur.push(...d.durations.map(x => x[0]).slice(1));
+          else { dur.push(...d.durations[0].slice(1)); dist.push(...(d.distances ? d.distances[0].slice(1) : part.map(() => null))); }
+          ok = true; break;
+        }
+      }catch(e){}
+    }
+    if (!ok) return null;
+  }
+  return { dur, dist };
+}
+let homeReq = false;
 async function homeTimes(){
   if (homeReq) return; homeReq = true;
   const c0 = LS.get("homeCache", null);
   if (c0 && c0.n === CAFES.length && Date.now() - c0.t < 14 * 86400000){ state.home = c0.dur; return; }
-  const coords = [[HOME.lng,HOME.lat], ...CAFES.map(c => [c.lng, c.lat])].map(p => p[0].toFixed(5) + "," + p[1].toFixed(5)).join(";");
-  let dur = null;
-  for (const host of ["https://routing.openstreetmap.de/routed-car", "https://router.project-osrm.org"]){
-    try{
-      const r = await fetch(`${host}/table/v1/driving/${coords}?destinations=0&annotations=duration`);
-      const d = await r.json();
-      if (r.ok && d.code === "Ok"){ dur = d.durations.map(x => x[0]).slice(1); break; }
-    }catch(e){}
-  }
+  const t = await osrmTable(HOME, true), dur = t && t.dur;
   if (!dur){ homeReq = false; return; }
   LS.set("homeCache", { t:Date.now(), n:CAFES.length, dur });
   state.home = dur; if (state.origin) renderAll();
@@ -157,14 +171,8 @@ async function roadTimes(){
   let dur = null, dist = null;
   if (c0 && c0.k === key && c0.n === CAFES.length && Date.now() - c0.t < 6 * 3600000){ dur = c0.dur; dist = c0.dist; }
   else {
-    const coords = [[o.lng,o.lat], ...CAFES.map(c => [c.lng, c.lat])].map(p => p[0].toFixed(5) + "," + p[1].toFixed(5)).join(";");
-    for (const host of ["https://routing.openstreetmap.de/routed-car", "https://router.project-osrm.org"]){
-      try{
-        const r = await fetch(`${host}/table/v1/driving/${coords}?sources=0&annotations=duration,distance`);
-        const d = await r.json();
-        if (r.ok && d.code === "Ok"){ dur = d.durations[0].slice(1); dist = d.distances ? d.distances[0].slice(1) : []; break; }
-      }catch(e){}
-    }
+    const t = await osrmTable(o, false);
+    if (t){ dur = t.dur; dist = t.dist; }
     if (dur) LS.set("roadCache", { k:key, t:Date.now(), n:CAFES.length, dur, dist });
   }
   if (my !== osrmRun || !dur) return;
